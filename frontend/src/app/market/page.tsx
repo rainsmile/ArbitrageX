@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { Tabs } from "@/components/ui/tabs";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
@@ -16,7 +16,9 @@ import {
   formatTimeAgo,
   cn,
 } from "@/lib/utils";
-import { useMarketTickers, useMarketSpreads } from "@/hooks/useApi";
+import { useMarketTickers, useMarketSpreads, queryKeys } from "@/hooks/useApi";
+import { useQueryClient } from "@tanstack/react-query";
+import { useWebSocket } from "@/hooks/useWebSocket";
 import type { ExchangeId, Ticker, SpreadInfo } from "@/types";
 
 // ---------------------------------------------------------------------------
@@ -487,16 +489,39 @@ export default function MarketPage() {
   const [activeSymbol, setActiveSymbol] = useState("all");
   const [activeExchange, setActiveExchange] = useState("all");
   const [autoRefresh, setAutoRefresh] = useState(true);
+  const queryClient = useQueryClient();
 
-  // Hooks with conditional refetch
+  // ---- WebSocket: subscribe to real-time market updates ----
+  // Throttle invalidation to avoid flooding React Query (max once per 500ms)
+  const lastInvalidateRef = useRef(0);
+
+  const { status: wsStatus } = useWebSocket(
+    "market",
+    useCallback(
+      (msg) => {
+        if (!autoRefresh) return;
+        const now = Date.now();
+        if (now - lastInvalidateRef.current < 500) return;
+        lastInvalidateRef.current = now;
+
+        // Invalidate ticker + spread queries so React Query refetches
+        queryClient.invalidateQueries({ queryKey: ["market", "tickers"] });
+        queryClient.invalidateQueries({ queryKey: ["market", "spreads"] });
+      },
+      [autoRefresh, queryClient]
+    ),
+    { enabled: autoRefresh }
+  );
+
+  // Hooks with conditional refetch -- longer fallback interval since WS is primary
   const { data: tickers = [] } = useMarketTickers(
     activeExchange !== "all" ? activeExchange : undefined,
     activeSymbol !== "all" ? activeSymbol : undefined,
-    { refetchInterval: autoRefresh ? 3_000 : false }
+    { refetchInterval: autoRefresh ? 10_000 : false }
   );
   const { data: spreads = [] } = useMarketSpreads(
     activeSymbol !== "all" ? { symbol: activeSymbol } : undefined,
-    { refetchInterval: autoRefresh ? 3_000 : false }
+    { refetchInterval: autoRefresh ? 10_000 : false }
   );
 
   // Computed data
@@ -554,19 +579,30 @@ export default function MarketPage() {
               </div>
             </div>
 
-            {/* Auto-refresh toggle */}
+            {/* Auto-refresh toggle + WS status */}
             <div className="flex items-center gap-3">
               <Switch
                 checked={autoRefresh}
                 onChange={setAutoRefresh}
-                label="自动刷新"
+                label="实时推送"
                 size="sm"
               />
               {autoRefresh && (
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success-400 opacity-40" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-success-400" />
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="relative flex h-2 w-2">
+                    <span className={cn(
+                      "animate-ping absolute inline-flex h-full w-full rounded-full opacity-40",
+                      wsStatus === "connected" ? "bg-success-400" : "bg-warning-400"
+                    )} />
+                    <span className={cn(
+                      "relative inline-flex rounded-full h-2 w-2",
+                      wsStatus === "connected" ? "bg-success-400" : "bg-warning-400"
+                    )} />
+                  </span>
+                  <span className="text-[10px] text-slate-500">
+                    {wsStatus === "connected" ? "WS实时" : wsStatus === "connecting" ? "连接中" : "轮询"}
+                  </span>
+                </div>
               )}
             </div>
           </div>

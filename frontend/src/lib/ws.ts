@@ -129,7 +129,15 @@ class WebSocketManager {
 
       ws.onmessage = (event) => {
         try {
-          const message = JSON.parse(event.data) as WsMessage;
+          const raw = JSON.parse(event.data);
+          // Normalize backend format {type, data, id, timestamp}
+          // to frontend WsMessage {channel, event, data, timestamp}
+          const message: WsMessage = {
+            channel,
+            event: raw.type ?? raw.event ?? "",
+            data: raw.data ?? raw,
+            timestamp: raw.timestamp ?? new Date().toISOString(),
+          };
           for (const handler of state.handlers) {
             try {
               handler(message);

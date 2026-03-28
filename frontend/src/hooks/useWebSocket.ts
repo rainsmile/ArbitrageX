@@ -81,19 +81,25 @@ export function useMarketStream(options?: { enabled?: boolean }) {
       const { useMarketStore } = require("@/store");
       const store = useMarketStore.getState();
 
-      switch (msg.event) {
+      // Backend sends event type "market_update" with data.type = "ticker"|"orderbook"
+      const dataType = (msg.data as { type?: string })?.type ?? msg.event;
+
+      switch (dataType) {
         case "ticker":
-          store.setTicker(
-            `${(msg.data as { exchange: string }).exchange}:${(msg.data as { symbol: string }).symbol}`,
-            msg.data as never
-          );
+        case "market_update": {
+          const d = msg.data as { exchange?: string; symbol?: string };
+          if (d.exchange && d.symbol) {
+            store.setTicker(`${d.exchange}:${d.symbol}`, msg.data as never);
+          }
           break;
-        case "orderbook":
-          store.setOrderbook(
-            `${(msg.data as { exchange: string }).exchange}:${(msg.data as { symbol: string }).symbol}`,
-            msg.data as never
-          );
+        }
+        case "orderbook": {
+          const d = msg.data as { exchange?: string; symbol?: string };
+          if (d.exchange && d.symbol) {
+            store.setOrderbook(`${d.exchange}:${d.symbol}`, msg.data as never);
+          }
           break;
+        }
         case "spread":
           // spreads arrive individually; batch them in store
           break;
@@ -117,7 +123,7 @@ export function useOpportunityStream(options?: { enabled?: boolean }) {
       const { useMarketStore } = require("@/store");
       const store = useMarketStore.getState();
 
-      if (msg.event === "opportunity") {
+      if (msg.event === "opportunity" || msg.event === "opportunity_found") {
         store.addOpportunity(msg.data as never);
       }
     },
@@ -141,11 +147,14 @@ export function useExecutionStream(options?: { enabled?: boolean }) {
 
       switch (msg.event) {
         case "execution_started":
+        case "live_order_submitted":
           store.addExecution(msg.data as never);
           break;
         case "execution_updated":
         case "execution_completed":
         case "execution_failed":
+        case "live_order_filled":
+        case "live_order_failed":
           store.updateExecution(msg.data as never);
           break;
       }
