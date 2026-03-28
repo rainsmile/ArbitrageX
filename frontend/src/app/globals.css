@@ -1,0 +1,194 @@
+@import "tailwindcss";
+@config "../../tailwind.config.ts";
+
+/* ── Theme Variables ─────────────────────────────────────────────── */
+
+@theme inline {
+  --color-background: #0a0e17;
+  --color-foreground: #e2e8f0;
+
+  --color-dark-950: #0a0e17;
+  --color-dark-900: #0f1419;
+  --color-dark-800: #1a1f2e;
+  --color-dark-700: #242b3d;
+
+  --color-primary-400: #60a5fa;
+  --color-primary-500: #3b82f6;
+  --color-primary-600: #2563eb;
+
+  --color-accent-400: #22d3ee;
+  --color-accent-500: #06b6d4;
+
+  --color-success-400: #4ade80;
+  --color-success-500: #22c55e;
+
+  --color-danger-400: #f87171;
+  --color-danger-500: #ef4444;
+
+  --color-warning-400: #fbbf24;
+  --color-warning-500: #f59e0b;
+
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", monospace;
+}
+
+/* ── Base Styles ─────────────────────────────────────────────────── */
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background-color: var(--color-dark-950);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Custom Scrollbar ────────────────────────────────────────────── */
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-dark-950);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-dark-700);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #2d3548;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-dark-700) var(--color-dark-950);
+}
+
+/* ── Glassmorphism Utilities ─────────────────────────────────────── */
+
+.glass-card {
+  background: rgba(15, 20, 25, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+}
+
+.glass-panel {
+  background: rgba(26, 31, 46, 0.5);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
+}
+
+/* ── Glow Effects ────────────────────────────────────────────────── */
+
+.glow-green {
+  box-shadow: 0 0 12px rgba(34, 197, 94, 0.3), 0 0 4px rgba(34, 197, 94, 0.15);
+}
+
+.glow-red {
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.3), 0 0 4px rgba(239, 68, 68, 0.15);
+}
+
+.glow-blue {
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.3), 0 0 4px rgba(59, 130, 246, 0.15);
+}
+
+.glow-cyan {
+  box-shadow: 0 0 12px rgba(6, 182, 212, 0.3), 0 0 4px rgba(6, 182, 212, 0.15);
+}
+
+/* ── Animation Keyframes ─────────────────────────────────────────── */
+
+@keyframes pulse-glow {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes slide-in {
+  0% {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fade-in {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes spin-slow {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes status-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.5);
+    opacity: 0.4;
+  }
+}
+
+/* ── Number / Financial Data Typography ──────────────────────────── */
+
+.font-number {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.text-profit {
+  color: var(--color-success-400);
+}
+
+.text-loss {
+  color: var(--color-danger-400);
+}
+
+/* ── Focus Ring ──────────────────────────────────────────────────── */
+
+.focus-ring {
+  outline: none;
+}
+
+.focus-ring:focus-visible {
+  box-shadow: 0 0 0 2px var(--color-dark-950), 0 0 0 4px var(--color-primary-500);
+}
