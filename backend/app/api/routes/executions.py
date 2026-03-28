@@ -83,6 +83,39 @@ async def get_active_executions(
 
 
 @router.get(
+    "/active-detail",
+    summary="Get all active executions with full detail",
+)
+async def get_active_executions_detail(
+    request: Request,
+):
+    """Return all currently in-flight executions from the coordinator."""
+
+    coordinator = getattr(request.app.state, "coordinator", None)
+    if coordinator is None:
+        raise HTTPException(status_code=503, detail="ExecutionCoordinator not available")
+
+    return await coordinator.get_active_executions()
+
+
+@router.get(
+    "/history",
+    summary="Get recent execution history from coordinator",
+)
+async def get_execution_history(
+    request: Request,
+    limit: int = Query(50, ge=1, le=200, description="Max number of results"),
+):
+    """Return recently completed executions (in-memory, newest first)."""
+
+    coordinator = getattr(request.app.state, "coordinator", None)
+    if coordinator is None:
+        raise HTTPException(status_code=503, detail="ExecutionCoordinator not available")
+
+    return coordinator.get_execution_history(limit=limit)
+
+
+@router.get(
     "/",
     response_model=ExecutionListResponse,
     summary="List executions with filters",
@@ -322,22 +355,6 @@ async def execute_triangular(
         mode=payload.mode,
     )
     return result.to_dict()
-
-
-@router.get(
-    "/active-detail",
-    summary="Get all active executions with full detail",
-)
-async def get_active_executions_detail(
-    request: Request,
-):
-    """Return all currently in-flight executions from the coordinator."""
-
-    coordinator = getattr(request.app.state, "coordinator", None)
-    if coordinator is None:
-        raise HTTPException(status_code=503, detail="ExecutionCoordinator not available")
-
-    return await coordinator.get_active_executions()
 
 
 @router.get(

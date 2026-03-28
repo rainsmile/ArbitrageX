@@ -76,9 +76,18 @@ export function DataTable<T extends Record<string, unknown>>({
     });
   }, [data, sortKey, sortDir]);
 
+  // Internal pagination: slice sortedData to the current page
+  const totalItems = pagination ? pagination.total : sortedData.length;
   const totalPages = pagination
-    ? Math.ceil(pagination.total / pagination.pageSize)
+    ? Math.ceil(totalItems / pagination.pageSize)
     : 0;
+
+  // Compute displayed page inline (no useMemo) to avoid stale-closure issues
+  const displayData = (() => {
+    if (!pagination) return sortedData;
+    const start = (pagination.page - 1) * pagination.pageSize;
+    return sortedData.slice(start, start + pagination.pageSize);
+  })();
 
   return (
     <div className={cn("w-full overflow-hidden rounded-xl border border-white/[0.06] bg-dark-900", className)}>
@@ -120,7 +129,7 @@ export function DataTable<T extends Record<string, unknown>>({
             </tr>
           </thead>
           <tbody>
-            {sortedData.length === 0 ? (
+            {displayData.length === 0 ? (
               <tr>
                 <td
                   colSpan={columns.length}
@@ -130,12 +139,9 @@ export function DataTable<T extends Record<string, unknown>>({
                 </td>
               </tr>
             ) : (
-              sortedData.map((row, idx) => (
-                <motion.tr
+              displayData.map((row, idx) => (
+                <tr
                   key={keyExtractor(row, idx)}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: idx * 0.02, duration: 0.2 }}
                   className={cn(
                     "border-b border-white/[0.03] transition-colors duration-150",
                     "hover:bg-white/[0.02]",
@@ -158,7 +164,7 @@ export function DataTable<T extends Record<string, unknown>>({
                         : (row[col.key] as React.ReactNode) ?? "—"}
                     </td>
                   ))}
-                </motion.tr>
+                </tr>
               ))
             )}
           </tbody>

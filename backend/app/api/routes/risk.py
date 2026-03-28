@@ -219,15 +219,7 @@ async def get_risk_exposure(
     except Exception as exc:
         logger.debug("Failed to query exposure: {}", exc)
 
-    # Fallback demo data
-    return [
-        RiskExposure(exchange="binance", asset="BTC", amount=Decimal("0.5"), usd_value=Decimal("33617.25"), pct_of_total=Decimal("40.2")),
-        RiskExposure(exchange="binance", asset="USDT", amount=Decimal("15000"), usd_value=Decimal("15000"), pct_of_total=Decimal("17.9")),
-        RiskExposure(exchange="okx", asset="ETH", amount=Decimal("5.0"), usd_value=Decimal("17283.90"), pct_of_total=Decimal("20.7")),
-        RiskExposure(exchange="okx", asset="USDT", amount=Decimal("10000"), usd_value=Decimal("10000"), pct_of_total=Decimal("12.0")),
-        RiskExposure(exchange="bybit", asset="SOL", amount=Decimal("50"), usd_value=Decimal("7117.50"), pct_of_total=Decimal("8.5")),
-        RiskExposure(exchange="bybit", asset="USDT", amount=Decimal("600"), usd_value=Decimal("600"), pct_of_total=Decimal("0.7")),
-    ]
+    return []
 
 
 # ---------------------------------------------------------------------------

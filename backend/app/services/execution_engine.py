@@ -40,6 +40,9 @@ from app.services.risk_engine import RiskEngine
 from app.services.scanner import OpportunityCandidate
 from app.services.simulation import SimulationService
 
+# Paper-mode mock adapter cache (module-level)
+_paper_adapters: dict[str, Any] = {}
+
 
 # ---------------------------------------------------------------------------
 # Data classes
@@ -76,6 +79,27 @@ class LegResult:
     submitted_at: float = 0.0
     filled_at: float = 0.0
 
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "leg_index": self.leg_index,
+            "exchange": self.exchange,
+            "symbol": self.symbol,
+            "side": self.side,
+            "planned_price": self.planned_price,
+            "planned_quantity": self.planned_quantity,
+            "actual_price": self.actual_price,
+            "actual_quantity": self.actual_quantity,
+            "fee": self.fee,
+            "fee_asset": self.fee_asset,
+            "slippage_pct": self.slippage_pct,
+            "order_id": self.order_id,
+            "exchange_order_id": self.exchange_order_id,
+            "status": self.status,
+            "error": self.error,
+            "submitted_at": self.submitted_at,
+            "filled_at": self.filled_at,
+        }
+
 
 @dataclass(slots=True)
 class ExecutionResult:
@@ -102,18 +126,39 @@ class ExecutionResult:
         return self.state in ("COMPLETED", "FILLED")
 
     def to_dict(self) -> dict[str, Any]:
+        # Derive symbol from legs if available
+        symbol = ""
+        buy_exchange = ""
+        sell_exchange = ""
+        if self.legs:
+            symbol = self.legs[0].symbol
+            for lg in self.legs:
+                if lg.side == "BUY":
+                    buy_exchange = lg.exchange
+                elif lg.side == "SELL":
+                    sell_exchange = lg.exchange
+        total_notional = sum(lg.actual_price * lg.actual_quantity for lg in self.legs if lg.side == "BUY") or 0
         return {
             "execution_id": self.execution_id,
             "opportunity_id": self.opportunity_id,
             "strategy_type": self.strategy_type,
             "mode": self.mode,
             "state": self.state,
+            "symbol": symbol,
+            "buy_exchange": buy_exchange,
+            "sell_exchange": sell_exchange,
             "planned_profit_pct": self.planned_profit_pct,
             "actual_profit_pct": self.actual_profit_pct,
             "actual_profit_usdt": self.actual_profit_usdt,
+            "gross_profit_usdt": self.gross_profit_usdt,
             "total_fees_usdt": self.total_fees_usdt,
+            "total_slippage_usdt": self.total_slippage_usdt,
+            "total_notional": total_notional,
             "execution_time_ms": self.execution_time_ms,
+            "started_at": self.started_at,
+            "completed_at": self.completed_at,
             "legs": len(self.legs),
+            "legs_detail": [lg.to_dict() for lg in self.legs],
             "error_message": self.error_message,
         }
 
@@ -153,6 +198,58 @@ class ExecutionEngine:
     # Public API
     # ------------------------------------------------------------------
 
+    def _get_paper_adapter(self, exchange_name: str) -> BaseExchangeAdapter:
+        """Return a MockExchangeAdapter for paper trading.
+
+        The adapter is cached and its prices are synced with real market
+        data from the MarketDataService on every access.
+        """
+        from app.exchanges.mock import MockExchangeAdapter
+
+        key = f"paper_{exchange_name}"
+        adapter = _paper_adapters.get(key)
+        if adapter is None:
+            # Use per-exchange offsets to mimic realistic spread
+            offsets = {
+                "binance": 0.0, "okx": 0.05, "bybit": -0.03,
+                "kraken": 0.02, "kucoin": -0.04, "gate": 0.06,
+                "htx": -0.02, "bitget": 0.03, "mexc": -0.05,
+            }
+            adapter = MockExchangeAdapter(
+                name=f"paper_{exchange_name}",
+                price_offset_pct=offsets.get(exchange_name, 0.0),
+                slippage_bps=3.0,
+                initial_balances={
+                    "BTC": 10.0, "ETH": 100.0, "SOL": 500.0,
+                    "XRP": 50000.0, "DOGE": 200000.0, "ADA": 50000.0,
+                    "AVAX": 1000.0, "LINK": 5000.0, "DOT": 5000.0,
+                    "POL": 50000.0, "USDT": 500_000.0,
+                },
+            )
+            # Synchronous init -- shared prices already populated
+            MockExchangeAdapter._init_shared_prices()
+            adapter._initialized = True
+            _paper_adapters[key] = adapter
+            logger.debug("Created paper adapter for {}", exchange_name)
+
+        # Sync prices with real market data
+        for sym in self._cfg.strategy.enabled_pairs:
+            ticker = self._simulation._market_data.get_ticker(exchange_name, sym)
+            if ticker and ticker.last_price > 0:
+                adapter.set_price(sym, ticker.last_price)
+
+        return adapter
+
+    def _get_adapter(
+        self,
+        exchange_name: str,
+        paper: bool = False,
+    ) -> BaseExchangeAdapter:
+        """Return the appropriate adapter for the given mode."""
+        if paper:
+            return self._get_paper_adapter(exchange_name)
+        return self._exchange_factory.get(exchange_name)
+
     async def execute(
         self,
         opportunity: OpportunityCandidate,
@@ -160,8 +257,8 @@ class ExecutionEngine:
     ) -> ExecutionResult:
         """Execute an arbitrage opportunity.
 
-        If *mode* is ``"PAPER"``, delegates to the simulation service.
-        Otherwise places real orders on the exchanges.
+        Both paper and live modes go through the same execution paths.
+        Paper mode uses MockExchangeAdapter with real market data prices.
         """
         result = ExecutionResult(
             opportunity_id=opportunity.id,
@@ -183,13 +280,13 @@ class ExecutionEngine:
 
         await self._risk_engine.increment_concurrent()
 
+        paper = mode == "PAPER"
+
         try:
-            if mode == "PAPER":
-                result = await self._execute_paper(opportunity, result)
-            elif opportunity.strategy_type == "CROSS_EXCHANGE":
-                result = await self._execute_cross_exchange(opportunity, result)
+            if opportunity.strategy_type == "CROSS_EXCHANGE":
+                result = await self._execute_cross_exchange(opportunity, result, paper=paper)
             elif opportunity.strategy_type == "TRIANGULAR":
-                result = await self._execute_triangular(opportunity, result)
+                result = await self._execute_triangular(opportunity, result, paper=paper)
             else:
                 result.state = "FAILED"
                 result.error_message = f"Unknown strategy type: {opportunity.strategy_type}"
@@ -223,64 +320,21 @@ class ExecutionEngine:
         return result
 
     # ------------------------------------------------------------------
-    # Paper mode
-    # ------------------------------------------------------------------
-
-    async def _execute_paper(
-        self,
-        opportunity: OpportunityCandidate,
-        result: ExecutionResult,
-    ) -> ExecutionResult:
-        """Delegate execution to the simulation service."""
-        if opportunity.strategy_type == "CROSS_EXCHANGE":
-            sim_result = await self._simulation.simulate_cross_exchange(opportunity)
-        else:
-            sim_result = await self._simulation.simulate_triangular(opportunity)
-
-        result.state = "COMPLETED"
-        result.actual_profit_usdt = sim_result.net_profit_usdt
-        result.gross_profit_usdt = sim_result.gross_profit_usdt
-        result.total_fees_usdt = sim_result.total_fees_usdt
-        result.total_slippage_usdt = sim_result.total_slippage_usdt
-        if sim_result.entry_value_usdt > 0:
-            result.actual_profit_pct = (
-                sim_result.net_profit_usdt / sim_result.entry_value_usdt * 100.0
-            )
-
-        # Build leg results from simulation
-        for i, leg_sim in enumerate(sim_result.legs):
-            result.legs.append(LegResult(
-                leg_index=i,
-                exchange=leg_sim.exchange,
-                symbol=leg_sim.symbol,
-                side=leg_sim.side,
-                planned_price=leg_sim.planned_price,
-                planned_quantity=leg_sim.planned_quantity,
-                actual_price=leg_sim.fill_price,
-                actual_quantity=leg_sim.fill_quantity,
-                fee=leg_sim.fee_usdt,
-                fee_asset="USDT",
-                slippage_pct=leg_sim.slippage_pct,
-                status="FILLED",
-                filled_at=time.time(),
-            ))
-
-        return result
-
-    # ------------------------------------------------------------------
-    # Cross-exchange (live)
+    # Cross-exchange execution (paper & live share same path)
     # ------------------------------------------------------------------
 
     async def _execute_cross_exchange(
         self,
         opportunity: OpportunityCandidate,
         result: ExecutionResult,
+        *,
+        paper: bool = False,
     ) -> ExecutionResult:
         """Place simultaneous buy/sell on different exchanges."""
         result.state = "SUBMITTING"
 
-        buy_adapter = self._exchange_factory.get(opportunity.buy_exchange)
-        sell_adapter = self._exchange_factory.get(opportunity.sell_exchange)
+        buy_adapter = self._get_adapter(opportunity.buy_exchange, paper=paper)
+        sell_adapter = self._get_adapter(opportunity.sell_exchange, paper=paper)
         symbol = opportunity.symbols[0] if opportunity.symbols else opportunity.symbol
         quantity = opportunity.executable_quantity
 
@@ -409,19 +463,21 @@ class ExecutionEngine:
         return result
 
     # ------------------------------------------------------------------
-    # Triangular (live)
+    # Triangular execution (paper & live share same path)
     # ------------------------------------------------------------------
 
     async def _execute_triangular(
         self,
         opportunity: OpportunityCandidate,
         result: ExecutionResult,
+        *,
+        paper: bool = False,
     ) -> ExecutionResult:
         """Execute 3 sequential legs on a single exchange."""
         result.state = "SUBMITTING"
 
         exchange_name = opportunity.exchanges[0] if opportunity.exchanges else ""
-        adapter = self._exchange_factory.get(exchange_name)
+        adapter = self._get_adapter(exchange_name, paper=paper)
 
         # Parse symbols from the opportunity
         symbols = opportunity.symbols

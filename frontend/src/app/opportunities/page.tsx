@@ -16,7 +16,8 @@ import {
   formatTimeAgo,
   cn,
 } from "@/lib/utils";
-import { useScannerOpportunities } from "@/hooks/useApi";
+import { Switch } from "@/components/ui/switch";
+import { useScannerOpportunities, useAutoExecution, useSetAutoExecution } from "@/hooks/useApi";
 import type { ArbitrageOpportunity, StrategyType } from "@/types";
 
 // ---------------------------------------------------------------------------
@@ -565,6 +566,35 @@ export default function OpportunitiesPage() {
   const [sortBy, setSortBy] = useState("profit");
   const [selectedOpp, setSelectedOpp] = useState<OpportunityDisplay | null>(null);
 
+  // Auto-execution state
+  const { data: autoExecStatus } = useAutoExecution();
+  const setAutoExec = useSetAutoExecution();
+  const [tradeSizeInput, setTradeSizeInput] = useState("");
+  const [tradeSizeSaved, setTradeSizeSaved] = useState(false);
+
+  // Sync trade size input from API
+  useEffect(() => {
+    if (autoExecStatus?.trade_size_usdt && !tradeSizeInput) {
+      setTradeSizeInput(String(autoExecStatus.trade_size_usdt));
+    }
+  }, [autoExecStatus?.trade_size_usdt]);
+
+  const handleAutoExecToggle = useCallback((enabled: boolean) => {
+    setAutoExec.mutate({ enabled });
+  }, [setAutoExec]);
+
+  const handleTradeSizeSave = useCallback(() => {
+    const val = parseFloat(tradeSizeInput);
+    if (!isNaN(val) && val > 0) {
+      setAutoExec.mutate({ trade_size_usdt: val }, {
+        onSuccess: () => {
+          setTradeSizeSaved(true);
+          setTimeout(() => setTradeSizeSaved(false), 2000);
+        },
+      });
+    }
+  }, [tradeSizeInput, setAutoExec]);
+
   // Auto-refresh countdown
   const [refreshCountdown, setRefreshCountdown] = useState(5);
   useEffect(() => {
@@ -660,6 +690,60 @@ export default function OpportunitiesPage() {
             自动刷新 {refreshCountdown}秒
           </div>
         </div>
+      </motion.div>
+
+      {/* ================================================================= */}
+      {/* Auto-execution Controls                                           */}
+      {/* ================================================================= */}
+      <motion.div variants={fadeUp}>
+        <Card padding="sm">
+          <div className="flex flex-wrap items-center gap-6">
+            <div className="flex items-center gap-3">
+              <Switch
+                checked={autoExecStatus?.enabled ?? false}
+                onChange={handleAutoExecToggle}
+                size="sm"
+              />
+              <div>
+                <span className="text-sm font-medium text-slate-200">自动执行</span>
+                <p className="text-[10px] text-slate-500">
+                  {autoExecStatus?.enabled ? "检测到机会后自动执行" : "需要手动点击执行"}
+                </p>
+              </div>
+            </div>
+            <div className="h-8 w-px bg-white/[0.06] hidden sm:block" />
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-slate-400 whitespace-nowrap">起始金额</label>
+              <div className="relative w-36">
+                <input
+                  type="number"
+                  value={tradeSizeInput}
+                  onChange={(e) => setTradeSizeInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") handleTradeSizeSave(); }}
+                  className="w-full rounded-lg bg-dark-800 border border-white/[0.08] px-3 py-1.5 text-sm font-mono text-slate-200 placeholder-slate-600 focus:border-primary-500/40 focus:outline-none"
+                  placeholder="1000"
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-slate-500">USDT</span>
+              </div>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={handleTradeSizeSave}
+                disabled={setAutoExec.isPending}
+              >
+                {tradeSizeSaved ? "已保存" : "保存"}
+              </Button>
+            </div>
+            <div className="flex items-center gap-2 ml-auto">
+              <Badge variant={autoExecStatus?.enabled ? "success" : "neutral"} dot size="sm">
+                {autoExecStatus?.enabled ? "自动" : "手动"}
+              </Badge>
+              <Badge variant="info" size="sm">
+                {autoExecStatus?.trading_mode === "live" ? "实盘" : "模拟"}
+              </Badge>
+            </div>
+          </div>
+        </Card>
       </motion.div>
 
       {/* ================================================================= */}

@@ -96,6 +96,8 @@ class ExecutionCoordinator:
         self._planner = execution_planner
 
         self._active_executions: dict[str, ActiveExecution] = {}
+        self._execution_history: list[dict[str, Any]] = []  # recent completed results
+        self._history_max = 200
 
     # ------------------------------------------------------------------
     # Primary entry point
@@ -316,6 +318,11 @@ class ExecutionCoordinator:
             },
         )
 
+        # Record in history before cleanup
+        self._execution_history.append(result.to_dict())
+        if len(self._execution_history) > self._history_max:
+            self._execution_history = self._execution_history[-self._history_max:]
+
         # Clean up active executions if terminal
         if sm.is_terminal:
             self._active_executions.pop(execution_id, None)
@@ -469,6 +476,10 @@ class ExecutionCoordinator:
     async def get_active_executions(self) -> list[dict[str, Any]]:
         """Return a summary of all currently in-flight executions."""
         return [active.to_dict() for active in self._active_executions.values()]
+
+    def get_execution_history(self, limit: int = 50) -> list[dict[str, Any]]:
+        """Return most recent completed executions (newest first)."""
+        return list(reversed(self._execution_history[-limit:]))
 
     async def get_execution_detail(
         self,

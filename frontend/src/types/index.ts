@@ -2,7 +2,7 @@
 // Enums (string union types)
 // ============================================================
 
-export type ExchangeId = "binance" | "okx" | "bybit" | "kraken" | "coinbase" | "huobi" | "gate" | "kucoin";
+export type ExchangeId = "binance" | "okx" | "bybit" | "kraken" | "coinbase" | "huobi" | "htx" | "gate" | "kucoin" | "bitget" | "mexc";
 
 export type OrderSide = "buy" | "sell";
 

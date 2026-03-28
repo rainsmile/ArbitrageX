@@ -46,38 +46,24 @@ def _default_time_range(
     return (start or now - timedelta(days=1), end or now)
 
 
-def _demo_pnl_summary(period_start: datetime, period_end: datetime) -> PnlSummary:
-    """Generate demo PnL summary."""
+def _empty_pnl_summary(period_start: datetime, period_end: datetime) -> PnlSummary:
+    """Return an empty PnL summary when no data is available."""
     return PnlSummary(
-        total_gross_profit_usdt=Decimal("142.35"),
-        total_fees_usdt=Decimal("18.24"),
-        total_net_profit_usdt=Decimal("124.11"),
-        total_slippage_usdt=Decimal("3.45"),
-        trade_count=87,
-        win_count=74,
-        loss_count=13,
-        win_rate=Decimal("85.06"),
-        avg_profit_per_trade_usdt=Decimal("1.43"),
-        max_profit_usdt=Decimal("12.87"),
-        max_loss_usdt=Decimal("-3.21"),
-        sharpe_ratio=Decimal("2.14"),
+        total_gross_profit_usdt=Decimal(0),
+        total_fees_usdt=Decimal(0),
+        total_net_profit_usdt=Decimal(0),
+        total_slippage_usdt=Decimal(0),
+        trade_count=0,
+        win_count=0,
+        loss_count=0,
+        win_rate=Decimal(0),
+        avg_profit_per_trade_usdt=Decimal(0),
+        max_profit_usdt=Decimal(0),
+        max_loss_usdt=Decimal(0),
+        sharpe_ratio=None,
         period_start=period_start,
         period_end=period_end,
     )
-
-
-def _demo_profit_by_period() -> list[ProfitByPeriod]:
-    now = datetime.now(timezone.utc)
-    return [
-        ProfitByPeriod(
-            period=(now - timedelta(hours=i)).strftime("%Y-%m-%dT%H:00"),
-            gross_profit_usdt=Decimal(str(round(5 + i * 0.7, 2))),
-            net_profit_usdt=Decimal(str(round(4 + i * 0.5, 2))),
-            fees_usdt=Decimal(str(round(0.8 + i * 0.1, 2))),
-            trade_count=3 + i,
-        )
-        for i in range(24)
-    ]
 
 
 # ---------------------------------------------------------------------------
@@ -140,7 +126,7 @@ async def get_pnl_summary(
     except Exception as exc:
         logger.debug("Failed to compute PnL summary: {}", exc)
 
-    return _demo_pnl_summary(period_start, period_end)
+    return _empty_pnl_summary(period_start, period_end)
 
 
 @router.get(
@@ -201,7 +187,7 @@ async def get_profit_by_period(
     except Exception as exc:
         logger.debug("Failed to compute profit by period: {}", exc)
 
-    return _demo_profit_by_period()
+    return []
 
 
 @router.get(
@@ -252,12 +238,7 @@ async def get_profit_by_exchange(
     except Exception as exc:
         logger.debug("Failed to compute profit by exchange: {}", exc)
 
-    # Demo data
-    return [
-        ProfitByExchange(exchange_buy="binance", exchange_sell="okx", net_profit_usdt=Decimal("52.30"), trade_count=28, avg_profit_usdt=Decimal("1.87"), win_rate=Decimal("89.3")),
-        ProfitByExchange(exchange_buy="okx", exchange_sell="bybit", net_profit_usdt=Decimal("38.14"), trade_count=22, avg_profit_usdt=Decimal("1.73"), win_rate=Decimal("86.4")),
-        ProfitByExchange(exchange_buy="bybit", exchange_sell="binance", net_profit_usdt=Decimal("33.67"), trade_count=37, avg_profit_usdt=Decimal("0.91"), win_rate=Decimal("81.1")),
-    ]
+    return []
 
 
 @router.get(
@@ -306,11 +287,7 @@ async def get_profit_by_symbol(
     except Exception as exc:
         logger.debug("Failed to compute profit by symbol: {}", exc)
 
-    return [
-        ProfitBySymbol(symbol="BTC/USDT", net_profit_usdt=Decimal("67.42"), trade_count=35, avg_profit_usdt=Decimal("1.93"), win_rate=Decimal("88.6")),
-        ProfitBySymbol(symbol="ETH/USDT", net_profit_usdt=Decimal("32.19"), trade_count=28, avg_profit_usdt=Decimal("1.15"), win_rate=Decimal("82.1")),
-        ProfitBySymbol(symbol="SOL/USDT", net_profit_usdt=Decimal("24.50"), trade_count=24, avg_profit_usdt=Decimal("1.02"), win_rate=Decimal("83.3")),
-    ]
+    return []
 
 
 @router.get(
@@ -359,10 +336,7 @@ async def get_profit_by_strategy(
     except Exception as exc:
         logger.debug("Failed to compute profit by strategy: {}", exc)
 
-    return [
-        ProfitByStrategy(strategy_type="CROSS_EXCHANGE", net_profit_usdt=Decimal("108.41"), trade_count=72, avg_profit_usdt=Decimal("1.51"), win_rate=Decimal("86.1")),
-        ProfitByStrategy(strategy_type="TRIANGULAR", net_profit_usdt=Decimal("15.70"), trade_count=15, avg_profit_usdt=Decimal("1.05"), win_rate=Decimal("80.0")),
-    ]
+    return []
 
 
 @router.get(
@@ -410,17 +384,12 @@ async def get_failure_analysis(
         logger.debug("Failed to compute failure analysis: {}", exc)
 
     return FailureAnalysis(
-        total_failures=5,
-        total_aborted=2,
-        failure_rate=Decimal("8.05"),
-        top_failure_reasons=[
-            {"timeout": 3},
-            {"insufficient_balance": 2},
-            {"price_moved": 1},
-            {"exchange_error": 1},
-        ],
-        failures_by_exchange={"binance": 2, "okx": 3, "bybit": 2},
-        failures_by_symbol={"BTC/USDT": 3, "ETH/USDT": 2, "SOL/USDT": 2},
+        total_failures=0,
+        total_aborted=0,
+        failure_rate=Decimal(0),
+        top_failure_reasons=[],
+        failures_by_exchange={},
+        failures_by_symbol={},
     )
 
 
@@ -475,13 +444,13 @@ async def get_slippage_analysis(
         logger.debug("Failed to compute slippage analysis: {}", exc)
 
     return SlippageAnalysis(
-        avg_slippage_pct=Decimal("0.032"),
-        median_slippage_pct=Decimal("0.025"),
-        max_slippage_pct=Decimal("0.142"),
-        total_slippage_usdt=Decimal("3.45"),
-        slippage_by_exchange={"binance": Decimal("0.028"), "okx": Decimal("0.035"), "bybit": Decimal("0.033")},
-        slippage_by_symbol={"BTC/USDT": Decimal("0.021"), "ETH/USDT": Decimal("0.038"), "SOL/USDT": Decimal("0.045")},
-        sample_count=87,
+        avg_slippage_pct=Decimal(0),
+        median_slippage_pct=Decimal(0),
+        max_slippage_pct=Decimal(0),
+        total_slippage_usdt=Decimal(0),
+        slippage_by_exchange={},
+        slippage_by_symbol={},
+        sample_count=0,
     )
 
 
@@ -576,30 +545,4 @@ async def get_opportunity_vs_execution(
     except Exception as exc:
         logger.debug("Failed to compute opp vs exec: {}", exc)
 
-    # Demo data
-    return [
-        {
-            "execution_id": "demo-001",
-            "planned_profit_pct": 0.12,
-            "actual_profit_pct": 0.09,
-            "actual_profit_usdt": 4.52,
-            "execution_time_ms": 234,
-            "execution_status": "COMPLETED",
-            "theoretical_profit_pct": 0.15,
-            "estimated_net_profit_pct": 0.12,
-            "spread_pct": 0.18,
-            "profit_deviation_pct": -0.03,
-        },
-        {
-            "execution_id": "demo-002",
-            "planned_profit_pct": 0.08,
-            "actual_profit_pct": 0.07,
-            "actual_profit_usdt": 2.11,
-            "execution_time_ms": 189,
-            "execution_status": "COMPLETED",
-            "theoretical_profit_pct": 0.10,
-            "estimated_net_profit_pct": 0.08,
-            "spread_pct": 0.12,
-            "profit_deviation_pct": -0.01,
-        },
-    ]
+    return []

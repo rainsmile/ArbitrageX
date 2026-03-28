@@ -85,7 +85,73 @@ export const mockExchanges: ExchangeStatus[] = [
     rateLimitRemaining: 112,
     rateLimitTotal: 120,
     lastHeartbeat: ago(5_000),
-    status: "degraded",
+    status: "healthy",
+    features: ["spot", "futures", "websocket"],
+  },
+  {
+    exchange: "kraken",
+    name: "Kraken",
+    connected: true,
+    latencyMs: 55,
+    rateLimitRemaining: 290,
+    rateLimitTotal: 300,
+    lastHeartbeat: ago(3_000),
+    status: "healthy",
+    features: ["spot", "margin", "websocket"],
+  },
+  {
+    exchange: "kucoin",
+    name: "KuCoin",
+    connected: true,
+    latencyMs: 68,
+    rateLimitRemaining: 180,
+    rateLimitTotal: 200,
+    lastHeartbeat: ago(4_000),
+    status: "healthy",
+    features: ["spot", "futures", "websocket"],
+  },
+  {
+    exchange: "gate",
+    name: "Gate.io",
+    connected: true,
+    latencyMs: 72,
+    rateLimitRemaining: 230,
+    rateLimitTotal: 250,
+    lastHeartbeat: ago(3_500),
+    status: "healthy",
+    features: ["spot", "futures", "websocket"],
+  },
+  {
+    exchange: "htx",
+    name: "HTX",
+    connected: true,
+    latencyMs: 59,
+    rateLimitRemaining: 190,
+    rateLimitTotal: 200,
+    lastHeartbeat: ago(4_000),
+    status: "healthy",
+    features: ["spot", "futures", "websocket"],
+  },
+  {
+    exchange: "bitget",
+    name: "Bitget",
+    connected: true,
+    latencyMs: 65,
+    rateLimitRemaining: 170,
+    rateLimitTotal: 200,
+    lastHeartbeat: ago(3_000),
+    status: "healthy",
+    features: ["spot", "futures", "websocket"],
+  },
+  {
+    exchange: "mexc",
+    name: "MEXC",
+    connected: true,
+    latencyMs: 78,
+    rateLimitRemaining: 140,
+    rateLimitTotal: 150,
+    lastHeartbeat: ago(4_500),
+    status: "healthy",
     features: ["spot", "futures", "websocket"],
   },
 ];
@@ -499,7 +565,7 @@ export const mockExposure: RiskExposure = {
   totalExposureUsd: 87421.30,
   maxExposureUsd: 200000,
   utilizationPercent: 43.7,
-  byExchange: { binance: 38412.50, okx: 31247.80, bybit: 17761.00, kraken: 0, coinbase: 0, huobi: 0, gate: 0, kucoin: 0 },
+  byExchange: { binance: 38412.50, okx: 31247.80, bybit: 17761.00, kraken: 0, coinbase: 0, huobi: 0, htx: 0, gate: 0, kucoin: 0, bitget: 0, mexc: 0 },
   bySymbol: { "BTC/USDT": 42180.20, "ETH/USDT": 28410.00, "SOL/USDT": 12831.10, "ARB/USDT": 2400.00, "DOGE/USDT": 1600.00 },
   openPositions: 1,
   pendingOrders: 1,
@@ -512,57 +578,62 @@ export const mockExposure: RiskExposure = {
 
 export const mockBalances: Balance[] = [
   // Binance
-  { asset: "USDT", exchange: "binance", free: 42180.50, locked: 5427.30, total: 47607.80, usdValue: 47607.80, updatedAt: ago(MIN) },
-  { asset: "BTC", exchange: "binance", free: 0.4812, locked: 0.0, total: 0.4812, usdValue: 32652.57, updatedAt: ago(MIN) },
-  { asset: "ETH", exchange: "binance", free: 8.241, locked: 0.0, total: 8.241, usdValue: 29193.27, updatedAt: ago(MIN) },
-  { asset: "SOL", exchange: "binance", free: 120.5, locked: 0.0, total: 120.5, usdValue: 17823.32, updatedAt: ago(MIN) },
+  { asset: "USDT", exchange: "binance", free: 15000, locked: 500, total: 15500, usdValue: 15500, updatedAt: ago(MIN) },
+  { asset: "BTC", exchange: "binance", free: 0.30, locked: 0.0, total: 0.30, usdValue: 20340, updatedAt: ago(MIN) },
+  { asset: "ETH", exchange: "binance", free: 2.0, locked: 0.0, total: 2.0, usdValue: 6914, updatedAt: ago(MIN) },
   // OKX
-  { asset: "USDT", exchange: "okx", free: 31247.80, locked: 0, total: 31247.80, usdValue: 31247.80, updatedAt: ago(2 * MIN) },
-  { asset: "BTC", exchange: "okx", free: 0.312, locked: 0.0, total: 0.312, usdValue: 21166.61, updatedAt: ago(2 * MIN) },
-  { asset: "ETH", exchange: "okx", free: 12.84, locked: 0.0, total: 12.84, usdValue: 45476.05, updatedAt: ago(2 * MIN) },
-  { asset: "SOL", exchange: "okx", free: 85.3, locked: 0.0, total: 85.3, usdValue: 12609.34, updatedAt: ago(2 * MIN) },
+  { asset: "USDT", exchange: "okx", free: 10000, locked: 200, total: 10200, usdValue: 10200, updatedAt: ago(2 * MIN) },
+  { asset: "ETH", exchange: "okx", free: 3.0, locked: 0.0, total: 3.0, usdValue: 10371, updatedAt: ago(2 * MIN) },
+  { asset: "BTC", exchange: "okx", free: 0.20, locked: 0.0, total: 0.20, usdValue: 13560, updatedAt: ago(2 * MIN) },
   // Bybit
-  { asset: "USDT", exchange: "bybit", free: 17761.00, locked: 0, total: 17761.00, usdValue: 17761.00, updatedAt: ago(3 * MIN) },
-  { asset: "BTC", exchange: "bybit", free: 0.182, locked: 0.08, total: 0.262, usdValue: 17774.39, updatedAt: ago(3 * MIN) },
-  { asset: "ETH", exchange: "bybit", free: 5.41, locked: 0.0, total: 5.41, usdValue: 19163.88, updatedAt: ago(3 * MIN) },
-  { asset: "DOGE", exchange: "bybit", free: 48200, locked: 0, total: 48200, usdValue: 7878.12, updatedAt: ago(3 * MIN) },
+  { asset: "USDT", exchange: "bybit", free: 8000, locked: 0, total: 8000, usdValue: 8000, updatedAt: ago(3 * MIN) },
+  { asset: "SOL", exchange: "bybit", free: 50, locked: 0, total: 50, usdValue: 7118, updatedAt: ago(3 * MIN) },
+  // Kraken
+  { asset: "USDT", exchange: "kraken", free: 5000, locked: 0, total: 5000, usdValue: 5000, updatedAt: ago(2 * MIN) },
+  { asset: "BTC", exchange: "kraken", free: 0.15, locked: 0.0, total: 0.15, usdValue: 10170, updatedAt: ago(2 * MIN) },
+  // KuCoin
+  { asset: "USDT", exchange: "kucoin", free: 6000, locked: 0, total: 6000, usdValue: 6000, updatedAt: ago(3 * MIN) },
+  { asset: "ETH", exchange: "kucoin", free: 2.0, locked: 0.0, total: 2.0, usdValue: 6914, updatedAt: ago(3 * MIN) },
+  // Gate
+  { asset: "USDT", exchange: "gate", free: 3000, locked: 0, total: 3000, usdValue: 3000, updatedAt: ago(2 * MIN) },
+  { asset: "XRP", exchange: "gate", free: 5000, locked: 0, total: 5000, usdValue: 6757, updatedAt: ago(2 * MIN) },
+  // HTX
+  { asset: "USDT", exchange: "htx", free: 4000, locked: 0, total: 4000, usdValue: 4000, updatedAt: ago(3 * MIN) },
+  { asset: "ADA", exchange: "htx", free: 15000, locked: 0, total: 15000, usdValue: 3768, updatedAt: ago(3 * MIN) },
+  // Bitget
+  { asset: "USDT", exchange: "bitget", free: 3500, locked: 0, total: 3500, usdValue: 3500, updatedAt: ago(2 * MIN) },
+  { asset: "AVAX", exchange: "bitget", free: 300, locked: 0, total: 300, usdValue: 2675, updatedAt: ago(2 * MIN) },
+  // MEXC
+  { asset: "USDT", exchange: "mexc", free: 11263, locked: 0, total: 11263, usdValue: 11263, updatedAt: ago(3 * MIN) },
+  { asset: "DOGE", exchange: "mexc", free: 30000, locked: 0, total: 30000, usdValue: 2819, updatedAt: ago(3 * MIN) },
 ];
 
 export const mockAllocations: ExchangeAllocation[] = [
-  {
-    exchange: "binance",
-    totalUsd: 127276.96,
-    percentOfTotal: 41.2,
-    assets: mockBalances.filter((b) => b.exchange === "binance"),
-    status: "connected",
-  },
-  {
-    exchange: "okx",
-    totalUsd: 110499.80,
-    percentOfTotal: 35.8,
-    assets: mockBalances.filter((b) => b.exchange === "okx"),
-    status: "connected",
-  },
-  {
-    exchange: "bybit",
-    totalUsd: 62577.39,
-    percentOfTotal: 20.3,
-    assets: mockBalances.filter((b) => b.exchange === "bybit"),
-    status: "degraded",
-  },
+  { exchange: "binance", totalUsd: 42754, percentOfTotal: 26.3, assets: mockBalances.filter((b) => b.exchange === "binance"), status: "connected" },
+  { exchange: "okx", totalUsd: 34131, percentOfTotal: 21.0, assets: mockBalances.filter((b) => b.exchange === "okx"), status: "connected" },
+  { exchange: "bybit", totalUsd: 15118, percentOfTotal: 9.3, assets: mockBalances.filter((b) => b.exchange === "bybit"), status: "connected" },
+  { exchange: "kraken", totalUsd: 15170, percentOfTotal: 9.3, assets: mockBalances.filter((b) => b.exchange === "kraken"), status: "connected" },
+  { exchange: "kucoin", totalUsd: 12914, percentOfTotal: 7.9, assets: mockBalances.filter((b) => b.exchange === "kucoin"), status: "connected" },
+  { exchange: "gate", totalUsd: 9757, percentOfTotal: 6.0, assets: mockBalances.filter((b) => b.exchange === "gate"), status: "connected" },
+  { exchange: "htx", totalUsd: 7768, percentOfTotal: 4.8, assets: mockBalances.filter((b) => b.exchange === "htx"), status: "connected" },
+  { exchange: "bitget", totalUsd: 6175, percentOfTotal: 3.8, assets: mockBalances.filter((b) => b.exchange === "bitget"), status: "connected" },
+  { exchange: "mexc", totalUsd: 14082, percentOfTotal: 8.7, assets: mockBalances.filter((b) => b.exchange === "mexc"), status: "degraded" },
 ];
 
 export const mockInventorySummary: InventorySummary = {
-  totalValueUsd: 300354.15,
-  change24h: 4218.73,
-  changePercent24h: 1.42,
+  totalValueUsd: 157869,
+  change24h: 1823.50,
+  changePercent24h: 1.17,
   exchanges: mockAllocations,
   topAssets: [
-    { asset: "USDT", totalUsd: 96616.60, percent: 32.2 },
-    { asset: "ETH", totalUsd: 93833.20, percent: 31.2 },
-    { asset: "BTC", totalUsd: 71593.57, percent: 23.8 },
-    { asset: "SOL", totalUsd: 30432.66, percent: 10.1 },
-    { asset: "DOGE", totalUsd: 7878.12, percent: 2.6 },
+    { asset: "USDT", totalUsd: 65963, percent: 41.8 },
+    { asset: "BTC", totalUsd: 44070, percent: 27.9 },
+    { asset: "ETH", totalUsd: 24199, percent: 15.3 },
+    { asset: "SOL", totalUsd: 7118, percent: 4.5 },
+    { asset: "XRP", totalUsd: 6757, percent: 4.3 },
+    { asset: "ADA", totalUsd: 3768, percent: 2.4 },
+    { asset: "DOGE", totalUsd: 2819, percent: 1.8 },
+    { asset: "AVAX", totalUsd: 2675, percent: 1.7 },
   ],
 };
 
@@ -571,9 +642,10 @@ export const mockInventorySummary: InventorySummary = {
 // ============================================================
 
 export const mockRebalanceSuggestions: RebalanceSuggestion[] = [
-  { id: "reb-001", fromExchange: "binance", toExchange: "bybit", asset: "USDT", amount: 8000, usdValue: 8000, reason: "Bybit USDT balance below optimal allocation threshold", priority: "medium", estimatedCost: 1.50, estimatedTime: "~15 minutes" },
-  { id: "reb-002", fromExchange: "okx", toExchange: "bybit", asset: "ETH", amount: 2.5, usdValue: 8855.60, reason: "Rebalance ETH across exchanges to maintain 33/33/33 target", priority: "low", estimatedCost: 3.20, estimatedTime: "~20 minutes" },
-  { id: "reb-003", fromExchange: "binance", toExchange: "okx", asset: "SOL", amount: 15, usdValue: 2217.30, reason: "OKX SOL reserve low for upcoming strategy executions", priority: "high", estimatedCost: 0.85, estimatedTime: "~5 minutes" },
+  { id: "reb-001", fromExchange: "binance", toExchange: "htx", asset: "USDT", amount: 3000, usdValue: 3000, reason: "HTX USDT balance low relative to trading activity", priority: "medium", estimatedCost: 1.50, estimatedTime: "~15 minutes" },
+  { id: "reb-002", fromExchange: "okx", toExchange: "kucoin", asset: "ETH", amount: 1.5, usdValue: 5186, reason: "KuCoin ETH below optimal for cross-exchange arb", priority: "low", estimatedCost: 3.20, estimatedTime: "~20 minutes" },
+  { id: "reb-003", fromExchange: "mexc", toExchange: "gate", asset: "USDT", amount: 2500, usdValue: 2500, reason: "Gate.io USDT low; MEXC has surplus for rebalancing", priority: "high", estimatedCost: 0.85, estimatedTime: "~5 minutes" },
+  { id: "reb-004", fromExchange: "kraken", toExchange: "bitget", asset: "USDT", amount: 1500, usdValue: 1500, reason: "Bitget USDT low relative to recent trading volume", priority: "medium", estimatedCost: 1.20, estimatedTime: "~10 minutes" },
 ];
 
 // ============================================================
@@ -587,8 +659,8 @@ export const mockStrategies: StrategyConfig[] = [
     type: "spatial",
     enabled: true,
     description: "Captures price differences between exchanges for the same trading pair. Executes simultaneous buy/sell when spread exceeds threshold.",
-    exchanges: ["binance", "okx", "bybit"],
-    symbols: ["BTC/USDT", "ETH/USDT", "SOL/USDT"],
+    exchanges: ["binance", "okx", "bybit", "kraken", "kucoin", "gate", "htx", "bitget", "mexc"],
+    symbols: ["BTC/USDT", "ETH/USDT", "SOL/USDT", "XRP/USDT", "DOGE/USDT", "ADA/USDT", "AVAX/USDT", "LINK/USDT", "DOT/USDT", "POL/USDT"],
     minProfitPercent: 0.02,
     maxPositionSize: 50000,
     maxDailyTrades: 100,
@@ -991,18 +1063,29 @@ export const mockRiskDecision: RiskDecision = {
 // ============================================================
 
 export const mockInventoryExposure: ExposureData = {
-  total_value_usdt: 156780.50,
+  total_value_usdt: 157869,
   per_exchange: {
-    binance: { value_usdt: 82450.30, pct_of_total: 52.6, assets: { BTC: { free: 0.85, locked: 0.05, usd_value: 51200 }, ETH: { free: 5.2, locked: 0, usd_value: 18200 }, USDT: { free: 12500, locked: 550, usd_value: 13050 } } },
-    okx: { value_usdt: 48230.20, pct_of_total: 30.8, assets: { BTC: { free: 0.42, locked: 0.02, usd_value: 26400 }, ETH: { free: 3.1, locked: 0.5, usd_value: 12600 }, USDT: { free: 8800, locked: 430, usd_value: 9230 } } },
-    bybit: { value_usdt: 26100.00, pct_of_total: 16.6, assets: { BTC: { free: 0.15, locked: 0, usd_value: 9000 }, USDT: { free: 16500, locked: 600, usd_value: 17100 } } },
+    binance: { value_usdt: 42754, pct_of_total: 27.1, assets: { BTC: { free: 0.30, locked: 0, usd_value: 20340 }, ETH: { free: 2.0, locked: 0, usd_value: 6914 }, USDT: { free: 15000, locked: 500, usd_value: 15500 } } },
+    okx: { value_usdt: 34131, pct_of_total: 21.6, assets: { BTC: { free: 0.20, locked: 0, usd_value: 13560 }, ETH: { free: 3.0, locked: 0, usd_value: 10371 }, USDT: { free: 10000, locked: 200, usd_value: 10200 } } },
+    bybit: { value_usdt: 15118, pct_of_total: 9.6, assets: { SOL: { free: 50, locked: 0, usd_value: 7118 }, USDT: { free: 8000, locked: 0, usd_value: 8000 } } },
+    kraken: { value_usdt: 15170, pct_of_total: 9.6, assets: { BTC: { free: 0.15, locked: 0, usd_value: 10170 }, USDT: { free: 5000, locked: 0, usd_value: 5000 } } },
+    kucoin: { value_usdt: 12914, pct_of_total: 8.2, assets: { ETH: { free: 2.0, locked: 0, usd_value: 6914 }, USDT: { free: 6000, locked: 0, usd_value: 6000 } } },
+    gate: { value_usdt: 9757, pct_of_total: 6.2, assets: { XRP: { free: 5000, locked: 0, usd_value: 6757 }, USDT: { free: 3000, locked: 0, usd_value: 3000 } } },
+    htx: { value_usdt: 7768, pct_of_total: 4.9, assets: { ADA: { free: 15000, locked: 0, usd_value: 3768 }, USDT: { free: 4000, locked: 0, usd_value: 4000 } } },
+    bitget: { value_usdt: 6175, pct_of_total: 3.9, assets: { AVAX: { free: 300, locked: 0, usd_value: 2675 }, USDT: { free: 3500, locked: 0, usd_value: 3500 } } },
+    mexc: { value_usdt: 14082, pct_of_total: 8.9, assets: { DOGE: { free: 30000, locked: 0, usd_value: 2819 }, USDT: { free: 11263, locked: 0, usd_value: 11263 } } },
   },
   per_asset: {
-    BTC: { total_amount: 1.49, total_usd_value: 86600, exchanges: ["binance", "okx", "bybit"] },
-    ETH: { total_amount: 8.8, total_usd_value: 30800, exchanges: ["binance", "okx"] },
-    USDT: { total_amount: 39380, total_usd_value: 39380, exchanges: ["binance", "okx", "bybit"] },
+    BTC: { total_amount: 0.65, total_usd_value: 44070, exchanges: ["binance", "okx", "kraken"] },
+    ETH: { total_amount: 7.0, total_usd_value: 24199, exchanges: ["binance", "okx", "kucoin"] },
+    SOL: { total_amount: 50, total_usd_value: 7118, exchanges: ["bybit"] },
+    XRP: { total_amount: 5000, total_usd_value: 6757, exchanges: ["gate"] },
+    ADA: { total_amount: 15000, total_usd_value: 3768, exchanges: ["htx"] },
+    AVAX: { total_amount: 300, total_usd_value: 2675, exchanges: ["bitget"] },
+    DOGE: { total_amount: 30000, total_usd_value: 2819, exchanges: ["mexc"] },
+    USDT: { total_amount: 65963, total_usd_value: 65963, exchanges: ["binance", "okx", "bybit", "kraken", "kucoin", "gate", "htx", "bitget", "mexc"] },
   },
-  concentration_risk: 0.38,
+  concentration_risk: 0.15,
 };
 
 // ============================================================
@@ -1056,10 +1139,10 @@ export const mockAuditStats: AuditStats = {
 // ============================================================
 
 export const mockInventoryFullSummary: InventoryFullSummary = {
-  total_value_usdt: 156780.50,
-  exchange_count: 3,
-  asset_count: 5,
+  total_value_usdt: 157869,
+  exchange_count: 9,
+  asset_count: 8,
   last_refresh_at: Date.now() / 1000 - 15,
   allocations: mockAllocations,
-  stablecoin_balance: 39380,
+  stablecoin_balance: 65963,
 };

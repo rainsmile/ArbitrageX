@@ -13,6 +13,8 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from loguru import logger
 
+from app.core.config import settings
+
 router = APIRouter(prefix="/api/live", tags=["live"])
 
 
@@ -261,4 +263,53 @@ async def trigger_reconciliation(request: Request) -> dict[str, Any]:
         "checked": len(results),
         "mismatches": sum(1 for r in results if not r.is_consistent),
         "results": [r.to_dict() for r in results],
+    }
+
+
+# ---------------------------------------------------------------------------
+# Auto-execution control
+# ---------------------------------------------------------------------------
+
+
+@router.get("/auto-execution")
+async def get_auto_execution_status() -> dict[str, Any]:
+    """Get current auto-execution settings."""
+    return {
+        "enabled": settings.live.allow_auto_execution,
+        "trading_mode": settings.live.trading_mode,
+        "require_manual_confirmation": settings.live.require_manual_confirmation,
+        "trade_size_usdt": settings.live.paper_trade_size_usdt,
+    }
+
+
+@router.post("/auto-execution")
+async def set_auto_execution(request: Request) -> dict[str, Any]:
+    """Toggle auto-execution on/off, and optionally set trade size.
+
+    Body: {"enabled": true|false, "trade_size_usdt": 1000}
+    """
+    body = await request.json()
+    enabled = body.get("enabled")
+    trade_size = body.get("trade_size_usdt")
+
+    if enabled is not None:
+        settings.live.allow_auto_execution = bool(enabled)
+        settings.live.require_manual_confirmation = not bool(enabled)
+        logger.info("Auto-execution toggled: enabled={}", settings.live.allow_auto_execution)
+
+    if trade_size is not None:
+        trade_size = float(trade_size)
+        if trade_size <= 0:
+            return JSONResponse(
+                status_code=400,
+                content={"error": "trade_size_usdt must be > 0"},
+            )
+        settings.live.paper_trade_size_usdt = trade_size
+        logger.info("Paper trade size set to: {} USDT", trade_size)
+
+    return {
+        "success": True,
+        "enabled": settings.live.allow_auto_execution,
+        "trading_mode": settings.live.trading_mode,
+        "trade_size_usdt": settings.live.paper_trade_size_usdt,
     }

@@ -290,8 +290,8 @@ export default function RiskPage() {
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2 mb-1">
                                   <span className="text-sm font-medium text-white">{cnName}</span>
-                                  <Badge variant={ACTION_VARIANT[rule.action] || 'neutral'} size="sm">
-                                    {rule.action.toUpperCase()}
+                                  <Badge variant={ACTION_VARIANT[rule.action ?? ''] || 'neutral'} size="sm">
+                                    {(rule.action ?? 'N/A').toUpperCase()}
                                   </Badge>
                                 </div>
                                 <p className="text-xs text-slate-500 leading-relaxed mb-1">{rule.description}</p>

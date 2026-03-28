@@ -26,12 +26,11 @@ import {
   cn,
 } from "@/lib/utils";
 import {
-  mockBalances,
-  mockAllocations,
-  mockInventoryFullSummary,
-  mockRebalanceSuggestions,
-  mockInventoryExposure,
-} from "@/lib/mock-data";
+  useInventoryBalances,
+  useAllocation,
+  useInventorySummary,
+  useRebalanceSuggestions,
+} from "@/hooks/useApi";
 import type { Balance, ExchangeAllocation, RebalanceSuggestion } from "@/types";
 
 // ---------------------------------------------------------------------------
@@ -164,10 +163,14 @@ const BarTooltip = ({
 export default function InventoryPage() {
   const [rebalanceStatuses, setRebalanceStatuses] = useState<Record<string, RebalanceStatus>>({});
 
-  const summary = mockInventoryFullSummary;
-  const allocations = mockAllocations;
-  const allBalances = mockBalances;
-  const exposure = mockInventoryExposure;
+  const { data: summaryData } = useInventorySummary();
+  const { data: allocationsData } = useAllocation();
+  const { data: balancesData } = useInventoryBalances();
+  const { data: rebalanceData } = useRebalanceSuggestions();
+
+  const summary = summaryData ?? { total_value_usdt: 0, exchange_count: 0, asset_count: 0, stablecoin_balance: 0 };
+  const allocations: ExchangeAllocation[] = allocationsData?.exchanges ?? summaryData?.allocations ?? [];
+  const allBalances: Balance[] = balancesData ?? [];
 
   // Derived values
   const totalPortfolioValue = summary.total_value_usdt;
@@ -176,7 +179,7 @@ export default function InventoryPage() {
   const stablecoinBalance = summary.stablecoin_balance;
 
   // Asset distribution for bar chart
-  const assetDistribution = useMemo(() => buildAssetDistribution(allBalances), []);
+  const assetDistribution = useMemo(() => buildAssetDistribution(allBalances), [allBalances]);
 
   // Donut chart data (per exchange)
   const donutData = allocations.map((a) => ({
@@ -471,7 +474,7 @@ export default function InventoryPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {mockRebalanceSuggestions.map((sug) => {
+                  {(rebalanceData ?? []).map((sug) => {
                     const status = getRebalanceStatus(sug.id);
                     const deviation = ((sug.usdValue / totalPortfolioValue) * 100);
 

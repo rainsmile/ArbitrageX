@@ -89,7 +89,7 @@ def setup_logging() -> None:
             "<level>{message}</level>"
         )
         if not use_json
-        else None,
+        else "{message}",
         colorize=not use_json,
     )
 

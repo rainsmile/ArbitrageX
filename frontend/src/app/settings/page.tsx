@@ -19,13 +19,6 @@ import {
   useExchanges,
   useSystemMetrics,
 } from "@/hooks/useApi";
-import {
-  mockStrategies,
-  mockRiskRules,
-  mockExchanges,
-  mockSystemHealth,
-  mockSystemMetrics,
-} from "@/lib/mock-data";
 import type { StrategyConfig, RiskRule, TradingMode } from "@/types";
 
 // ---------------------------------------------------------------------------
@@ -257,11 +250,10 @@ function GeneralTab() {
 
 function StrategiesTab() {
   const { data: apiStrategies } = useStrategies();
-  const [strategies, setStrategies] = useState<StrategyConfig[]>(mockStrategies);
+  const [strategies, setStrategies] = useState<StrategyConfig[]>([]);
   const [savedId, setSavedId] = useState<string | null>(null);
   const [dirtyIds, setDirtyIds] = useState<Set<string>>(new Set());
 
-  // Sync from API when available
   useMemo(() => {
     if (apiStrategies && apiStrategies.length > 0) {
       setStrategies(apiStrategies);
@@ -507,7 +499,7 @@ const categoryBadgeVariant: Record<string, "info" | "danger" | "warning" | "neut
 
 function RiskRulesTab() {
   const { data: apiRules } = useRiskRules();
-  const [rules, setRules] = useState<RiskRule[]>(mockRiskRules);
+  const [rules, setRules] = useState<RiskRule[]>([]);
   const [saved, setSaved] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -901,9 +893,9 @@ function SystemTab() {
   const { data: exchanges } = useExchanges();
   const { data: metrics } = useSystemMetrics();
 
-  const systemHealth = health ?? mockSystemHealth;
-  const exchangeList = exchanges ?? mockExchanges;
-  const systemMetrics = metrics ?? mockSystemMetrics;
+  const systemHealth = health ?? { status: "healthy" as const, version: "-", uptime: 0, memoryUsageMb: 0, cpuUsagePercent: 0, activeStrategies: 0 };
+  const exchangeList = exchanges ?? [];
+  const systemMetrics = metrics ?? { messagesPerSecond: 0, ordersPerMinute: 0, totalVolume24h: 0, activeConnections: 0, totalPnl24h: 0, opportunitiesDetected: 0, executionSuccessRate: 0 };
 
   const [testingExchange, setTestingExchange] = useState<string | null>(null);
   const [testResults, setTestResults] = useState<Record<string, "success" | "failed">>({});

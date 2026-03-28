@@ -778,14 +778,14 @@ export default function DashboardPage() {
             </h3>
             <StatusDot
               status={
-                exchangeList.every((e) => e.status === "healthy")
+                exchangeList.length === 0 || exchangeList.every((e) => e.status === "healthy")
                   ? "connected"
                   : exchangeList.some((e) => e.status === "down")
                     ? "disconnected"
                     : "degraded"
               }
               label={
-                exchangeList.every((e) => e.status === "healthy")
+                exchangeList.length === 0 || exchangeList.every((e) => e.status === "healthy")
                   ? "正常"
                   : "异常"
               }
@@ -808,7 +808,7 @@ export default function DashboardPage() {
                       ? "degraded"
                       : "disconnected"
                 }
-                detail={`${ex.latencyMs}ms`}
+                detail={ex.latencyMs > 0 ? `${ex.latencyMs}ms` : ex.connected ? "已连接" : "离线"}
               />
             ))}
           </div>
@@ -822,7 +822,7 @@ export default function DashboardPage() {
               label="跨所扫描"
               status={scannerStatus?.is_running ? "connected" : "disconnected"}
               detail={
-                scannerStatus?.cross_exchange
+                scannerStatus?.cross_exchange?.last_scan_duration_ms != null
                   ? `${scannerStatus.cross_exchange.last_scan_duration_ms.toFixed(1)}ms`
                   : "--"
               }
@@ -831,7 +831,7 @@ export default function DashboardPage() {
               label="三角套利"
               status={scannerStatus?.is_running ? "connected" : "disconnected"}
               detail={
-                scannerStatus?.triangular
+                scannerStatus?.triangular?.last_scan_duration_ms != null
                   ? `${scannerStatus.triangular.last_scan_duration_ms.toFixed(1)}ms`
                   : "--"
               }
@@ -847,7 +847,7 @@ export default function DashboardPage() {
               label="数据新鲜度"
               status="connected"
               detail={
-                scannerStatus?.cross_exchange
+                scannerStatus?.cross_exchange?.last_scan_at
                   ? `${((Date.now() / 1000 - scannerStatus.cross_exchange.last_scan_at)).toFixed(0)}s`
                   : "--"
               }

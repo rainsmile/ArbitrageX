@@ -11,11 +11,7 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { AlertPanel } from "./alert-panel";
 import { useSettingsStore, useAlertStore } from "@/store";
-import {
-  mockSystemMetrics,
-  mockExchanges,
-  mockAlerts,
-} from "@/lib/mock-data";
+import { useSystemMetrics, useExchanges } from "@/hooks/useApi";
 
 const routeTitles: Record<string, string> = {
   "/": "仪表盘",
@@ -35,6 +31,9 @@ export function Header() {
   const unreadCount = useAlertStore((s) => s.unreadCount);
   const [alertPanelOpen, setAlertPanelOpen] = useState(false);
 
+  const { data: systemMetrics } = useSystemMetrics();
+  const { data: exchangeList } = useExchanges();
+
   // Derive page title from pathname
   const pageTitle =
     routeTitles[pathname] ??
@@ -45,11 +44,7 @@ export function Header() {
     ] ??
     "仪表盘";
 
-  // Use mock unread count if store hasn't been hydrated
-  const displayUnread =
-    unreadCount > 0
-      ? unreadCount
-      : mockAlerts.filter((a) => !a.read).length;
+  const displayUnread = unreadCount;
 
   const toggleTradingMode = useCallback(() => {
     setTradingMode(tradingMode === "paper" ? "live" : "paper");
@@ -74,18 +69,18 @@ export function Header() {
         <div className="hidden md:flex items-center gap-6">
           <QuickStat
             label="今日盈亏"
-            value={formatCurrency(mockSystemMetrics.totalPnl24h)}
-            positive={mockSystemMetrics.totalPnl24h >= 0}
+            value={formatCurrency(systemMetrics?.totalPnl24h ?? 0)}
+            positive={(systemMetrics?.totalPnl24h ?? 0) >= 0}
           />
           <div className="h-8 w-px bg-white/[0.06]" />
           <QuickStat
             label="活跃机会"
-            value={String(mockSystemMetrics.opportunitiesDetected)}
+            value={String(systemMetrics?.opportunitiesDetected ?? 0)}
           />
           <div className="h-8 w-px bg-white/[0.06]" />
           <QuickStat
             label="成功率"
-            value={formatPercent(mockSystemMetrics.executionSuccessRate, {
+            value={formatPercent(systemMetrics?.executionSuccessRate ?? 0, {
               showSign: false,
             })}
           />
@@ -95,7 +90,7 @@ export function Header() {
         <div className="flex items-center gap-3">
           {/* Exchange connection dots */}
           <div className="hidden lg:flex items-center gap-2 mr-2">
-            {mockExchanges.map((ex) => (
+            {(exchangeList ?? []).map((ex) => (
               <Tooltip
                 key={ex.exchange}
                 content={`${ex.name}: ${ex.latencyMs}ms`}

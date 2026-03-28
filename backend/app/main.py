@@ -34,7 +34,7 @@ from app.services.execution_planner import ExecutionPlanner
 from app.services.inventory import InventoryManager
 from app.services.market_data import MarketDataService
 from app.services.risk_engine import RiskEngine
-from app.services.scanner import ArbitrageScanner
+from app.services.scanner import ArbitrageScanner, OpportunityCandidate
 from app.services.simulation import SimulationService
 
 # Phase 6: Live trading safety
@@ -109,6 +109,121 @@ async def _bridge_event_to_ws(event_type: EventType, ws_channel: str) -> None:
         await ws_manager.broadcast(ws_channel, payload)
 
     event_bus.subscribe(event_type, _handler)
+
+
+# ---------------------------------------------------------------------------
+# Auto-execution: scanner → coordinator
+# ---------------------------------------------------------------------------
+
+_auto_exec_lock = asyncio.Lock()
+_auto_exec_last: dict[str, float] = {}  # symbol → last execution timestamp
+_AUTO_EXEC_COOLDOWN_S = 30.0  # minimum seconds between executions per symbol
+
+
+def _setup_auto_execution(
+    coordinator: ExecutionCoordinator,
+    kill_switch: KillSwitch,
+    risk_engine: RiskEngine,
+) -> None:
+    """Subscribe to OPPORTUNITY_FOUND and auto-execute via coordinator.
+
+    Respects:
+    - ``settings.live.allow_auto_execution`` global switch
+    - ``settings.live.trading_mode`` determines paper vs live
+    - KillSwitch state
+    - Minimum net-profit filter to avoid executing noise
+    """
+
+    min_net_profit_pct = settings.risk.min_profit_threshold_pct
+
+    # Rules to relax in PAPER mode (profit can be negative in real markets)
+    _paper_skip_rules = {"min_profit", "min_depth", "min_orderbook_depth",
+                         "balance_sufficiency", "data_freshness"}
+
+    async def _on_opportunity(event: Any) -> None:
+        if not settings.live.allow_auto_execution:
+            return
+
+        if kill_switch.is_active:
+            logger.warning("Auto-exec skipped: kill switch active")
+            return
+
+        # Determine execution mode from trading_mode setting
+        mode_map = {"live": "LIVE", "live_small": "LIVE"}
+        mode = mode_map.get(settings.live.trading_mode, "PAPER")
+
+        data: dict = event.data
+
+        # In PAPER mode, use gross spread to allow simulated executions
+        # even when fees make net profit negative (realistic market conditions).
+        # In LIVE mode, strictly require positive net profit after fees.
+        if mode == "PAPER":
+            spread_pct = data.get("spread_pct", 0.0)
+            if spread_pct <= 0:
+                return
+        else:
+            net_pct = data.get("estimated_net_profit_pct", 0.0)
+            if net_pct < min_net_profit_pct:
+                return
+
+        symbol = data.get("symbol", "")
+
+        # Per-symbol cooldown to avoid flooding executions
+        now = time.time()
+        last = _auto_exec_last.get(symbol, 0.0)
+        if now - last < _AUTO_EXEC_COOLDOWN_S:
+            return
+        _auto_exec_last[symbol] = now
+
+        opp = OpportunityCandidate(**{
+            k: v for k, v in data.items()
+            if k in OpportunityCandidate.__dataclass_fields__
+        })
+
+        # Scale execution size to configured paper trade size
+        if mode == "PAPER" and settings.live.paper_trade_size_usdt > 0:
+            target_usdt = settings.live.paper_trade_size_usdt
+            if opp.buy_price and opp.buy_price > 0:
+                opp.executable_quantity = target_usdt / opp.buy_price
+                opp.executable_value_usdt = target_usdt
+
+        async with _auto_exec_lock:
+            # In PAPER mode, temporarily disable strict rules so simulated
+            # executions can proceed even when real-market spreads are thin.
+            disabled_rules: list[str] = []
+            if mode == "PAPER":
+                for rname in _paper_skip_rules:
+                    if risk_engine.disable_rule(rname):
+                        disabled_rules.append(rname)
+
+            try:
+                logger.info(
+                    "Auto-executing {} {} spread={:.4f}% net={:.4f}% mode={}",
+                    opp.symbol, opp.strategy_type,
+                    opp.spread_pct, opp.estimated_net_profit_pct, mode,
+                )
+                result = await coordinator.execute_opportunity(opp, mode=mode)
+                logger.info(
+                    "Auto-exec result: {} state={} pnl={:.2f} USDT",
+                    result.execution_id, result.state,
+                    result.actual_profit_usdt,
+                )
+            except Exception:
+                logger.opt(exception=True).error(
+                    "Auto-exec failed for opportunity {}",
+                    opp.id,
+                )
+            finally:
+                # Re-enable rules
+                for rname in disabled_rules:
+                    risk_engine.enable_rule(rname)
+
+    event_bus.subscribe(EventType.OPPORTUNITY_FOUND, _on_opportunity)
+    logger.info(
+        "Auto-execution wired (enabled={}, mode={})",
+        settings.live.allow_auto_execution,
+        settings.live.trading_mode,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -323,6 +438,9 @@ async def lifespan(app: FastAPI):
     app.state.order_tracker = order_tracker
     await order_tracker.start()
     logger.info("OrderTracker started")
+
+    # 12e. Auto-execution: scanner → coordinator
+    _setup_auto_execution(coordinator, kill_switch, risk_engine)
 
     # 13. Wire event bus to WebSocket bridge
     await _bridge_event_to_ws(EventType.MARKET_UPDATE, "market")

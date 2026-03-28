@@ -15,8 +15,8 @@ import {
   formatDate,
   cn,
 } from "@/lib/utils";
-import { mockExecutions, mockExecutionDetails, mockRiskDecision, mockAuditEntries } from "@/lib/mock-data";
-import type { ExecutionPlan, ExecutionLeg, ExecutionDetail, AuditEntry } from "@/types";
+import { useExecutionHistory, useExecutionAudit } from "@/hooks/useApi";
+import type { ExecutionPlan, ExecutionLeg, AuditEntry } from "@/types";
 
 // ---------------------------------------------------------------------------
 // State machine steps for visualization
@@ -44,28 +44,7 @@ function getPipelineIndex(exec: ExecutionPlan): number {
   return 2;
 }
 
-// ---------------------------------------------------------------------------
-// Derived data
-// ---------------------------------------------------------------------------
-
-const activeExecutions = mockExecutions.filter(
-  (e) => e.status === "executing" || e.status === "partial" || e.status === "pending"
-);
-
-const historyExecutions = mockExecutions.filter(
-  (e) => e.status === "completed" || e.status === "failed" || e.status === "cancelled" || e.status === "timeout"
-);
-
-const totalCount = mockExecutions.length;
-const successfulCount = mockExecutions.filter((e) => e.status === "completed").length;
-const failedCount = mockExecutions.filter((e) => e.status === "failed").length;
-const successRate = totalCount > 0 ? ((successfulCount / totalCount) * 100) : 0;
-const totalNetProfit = mockExecutions.reduce((sum, e) => sum + e.actualProfit, 0);
-const avgDuration =
-  mockExecutions
-    .filter((e) => e.duration > 0)
-    .reduce((sum, e) => sum + e.duration, 0) /
-  Math.max(1, mockExecutions.filter((e) => e.duration > 0).length);
+// (Derived data computed inside the component from live API data)
 
 // ---------------------------------------------------------------------------
 // Animation variants
@@ -268,27 +247,43 @@ const historyColumns: Column<HistoryRow>[] = [
 // Risk check mock data for detail view
 // ---------------------------------------------------------------------------
 
-const riskCheckResults = mockRiskDecision.results;
+const defaultRiskResults: Array<{ rule_name: string; passed: boolean; reason: string }> = [];
 
 // ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
 
 export default function ExecutionsPage() {
-  const [activeTab, setActiveTab] = useState("active");
+  const [activeTab, setActiveTab] = useState("history");
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [historyPage, setHistoryPage] = useState(1);
   const pageSize = 8;
+
+  const { data: allExecutions = [] } = useExecutionHistory();
+
+  const activeExecutions = useMemo(
+    () => allExecutions.filter((e) => e.status === "executing" || e.status === "partial" || e.status === "pending"),
+    [allExecutions],
+  );
+  const historyExecutions = useMemo(
+    () => allExecutions.filter((e) => e.status === "completed" || e.status === "failed" || e.status === "cancelled" || e.status === "timeout"),
+    [allExecutions],
+  );
+
+  const totalCount = allExecutions.length;
+  const successfulCount = allExecutions.filter((e) => e.status === "completed").length;
+  const failedCount = allExecutions.filter((e) => e.status === "failed").length;
+  const successRate = totalCount > 0 ? (successfulCount / totalCount) * 100 : 0;
+  const totalNetProfit = allExecutions.reduce((sum, e) => sum + e.actualProfit, 0);
+  const avgDuration =
+    allExecutions.filter((e) => e.duration > 0).reduce((sum, e) => sum + e.duration, 0) /
+    Math.max(1, allExecutions.filter((e) => e.duration > 0).length);
 
   const tabs = [
     { id: "active", label: "活跃执行", count: activeExecutions.length },
     { id: "history", label: "历史记录", count: historyExecutions.length },
   ];
 
-  const paginatedHistory = useMemo(() => {
-    const start = (historyPage - 1) * pageSize;
-    return historyExecutions.slice(start, start + pageSize);
-  }, [historyPage]);
 
   return (
     <motion.div
@@ -407,7 +402,7 @@ export default function ExecutionsPage() {
         <div className="space-y-4">
           <DataTable<HistoryRow>
             columns={historyColumns}
-            data={paginatedHistory as HistoryRow[]}
+            data={historyExecutions as HistoryRow[]}
             keyExtractor={(row) => row.id}
             onRowClick={(row) =>
               setExpandedRow(expandedRow === row.id ? null : row.id)
@@ -424,7 +419,6 @@ export default function ExecutionsPage() {
             {expandedRow && (
               <ExecutionDetailDrawer
                 exec={historyExecutions.find((e) => e.id === expandedRow)!}
-                detail={mockExecutionDetails.find((d) => d.execution_id === expandedRow) ?? null}
                 onClose={() => setExpandedRow(null)}
               />
             )}
@@ -642,18 +636,16 @@ function ActiveExecutionCard({ exec }: { exec: ExecutionPlan }) {
 
 function ExecutionDetailDrawer({
   exec,
-  detail,
   onClose,
 }: {
   exec: ExecutionPlan;
-  detail: ExecutionDetail | null;
   onClose: () => void;
 }) {
+  const { data: auditData } = useExecutionAudit(exec?.id ?? "");
   if (!exec) return null;
 
-  // Use Phase 3 detail data if available, otherwise fall back to Phase 1 data
-  const auditTrail: AuditEntry[] = detail?.audit_trail ?? mockAuditEntries.slice(0, 6);
-  const riskResults = detail?.plan?.risk_check?.results ?? riskCheckResults;
+  const auditTrail: AuditEntry[] = Array.isArray(auditData) ? auditData : [];
+  const riskResults = defaultRiskResults;
 
   return (
     <motion.div

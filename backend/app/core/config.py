@@ -64,8 +64,8 @@ class TradingSettings(BaseSettings):
 
     paper_mode: bool = Field(default=True, description="Paper trading mode — no real orders")
     enabled_exchanges: list[str] = Field(
-        default=["binance", "okx", "bybit"],
-        description="Exchanges to activate",
+        default=["binance", "okx", "bybit", "kraken", "kucoin", "gate", "htx", "bitget", "mexc"],
+        description="Exchanges to activate (top global exchanges)",
     )
 
 
@@ -93,9 +93,11 @@ class StrategySettings(BaseSettings):
             "SOL/USDT",
             "XRP/USDT",
             "DOGE/USDT",
-            "ARB/USDT",
+            "ADA/USDT",
             "AVAX/USDT",
-            "MATIC/USDT",
+            "LINK/USDT",
+            "DOT/USDT",
+            "POL/USDT",
         ],
     )
     scan_interval_ms: int = Field(default=500, description="How often to scan for opportunities (ms)")
@@ -141,10 +143,11 @@ class LiveTradingSettings(BaseSettings):
     trading_mode: str = "paper"  # mock, read_only, paper, simulation, live_small, live
 
     # Global switches
-    allow_auto_execution: bool = False
+    allow_auto_execution: bool = True
     allow_real_cancellation: bool = True
     allow_hedging: bool = True
-    require_manual_confirmation: bool = True
+    require_manual_confirmation: bool = False
+    paper_trade_size_usdt: float = 1000.0  # Starting amount for paper execution
 
     # Whitelists (empty = allow all configured)
     exchange_whitelist: list[str] = []
@@ -187,7 +190,7 @@ class Settings(BaseSettings):
     host: str = Field(default="0.0.0.0")
     port: int = Field(default=8000)
     allowed_origins: list[str] = Field(
-        default=["http://localhost:3000", "http://localhost:5173"],
+        default=["http://localhost:3000", "http://localhost:3001", "http://localhost:5173"],
     )
 
     db: DatabaseSettings = Field(default_factory=DatabaseSettings)

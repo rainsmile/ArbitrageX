@@ -16,7 +16,7 @@ import { formatTimeAgo } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAlertStore } from "@/store";
-import { mockAlerts } from "@/lib/mock-data";
+import { useAlerts } from "@/hooks/useApi";
 import type { Alert, AlertSeverity } from "@/types";
 
 interface AlertPanelProps {
@@ -68,9 +68,10 @@ export function AlertPanel({ open, onClose }: AlertPanelProps) {
   const storeAlerts = useAlertStore((s) => s.alerts);
   const markRead = useAlertStore((s) => s.markRead);
   const resolveAlert = useAlertStore((s) => s.resolveAlert);
+  const { data: apiAlerts } = useAlerts();
+  const apiAlertList: Alert[] = Array.isArray(apiAlerts) ? apiAlerts : (apiAlerts?.data ?? []);
 
-  // Use mock data if store is empty
-  const alerts = storeAlerts.length > 0 ? storeAlerts : mockAlerts;
+  const alerts = storeAlerts.length > 0 ? storeAlerts : apiAlertList;
 
   // Close on escape
   useEffect(() => {

@@ -282,9 +282,6 @@ class CrossExchangeScanner:
             # Net profit after fees (before slippage)
             net_after_fees = theoretical_profit_pct - buy_fee_pct - sell_fee_pct
 
-            if net_after_fees <= 0:
-                continue
-
             # Fetch orderbooks for depth analysis
             buy_ob = self._market_data.get_orderbook(best_ask_ticker.exchange, symbol)
             sell_ob = self._market_data.get_orderbook(best_bid_ticker.exchange, symbol)
@@ -296,16 +293,14 @@ class CrossExchangeScanner:
             ob_depth_buy = 0.0
             ob_depth_sell = 0.0
 
-            if buy_ob and sell_ob:
+            if buy_ob and sell_ob and buy_ob.asks and sell_ob.bids:
                 ob_depth_buy = _compute_orderbook_depth_usdt(buy_ob.asks[:10])
                 ob_depth_sell = _compute_orderbook_depth_usdt(sell_ob.bids[:10])
 
-                if ob_depth_buy < self._min_depth_usdt or ob_depth_sell < self._min_depth_usdt:
-                    continue
-
-                executable_qty, avg_buy_price, avg_sell_price, slippage_pct = (
-                    _compute_executable_quantity(buy_ob, sell_ob, self._max_order_value)
-                )
+                if ob_depth_buy >= self._min_depth_usdt and ob_depth_sell >= self._min_depth_usdt:
+                    executable_qty, avg_buy_price, avg_sell_price, slippage_pct = (
+                        _compute_executable_quantity(buy_ob, sell_ob, self._max_order_value)
+                    )
 
             if executable_qty <= 0:
                 # If no orderbook, use ticker size as estimate
@@ -316,8 +311,6 @@ class CrossExchangeScanner:
 
             # Final net profit after fees and slippage
             estimated_net_profit_pct = net_after_fees - slippage_pct
-            if estimated_net_profit_pct < self._min_profit_pct:
-                continue
 
             executable_value = executable_qty * avg_buy_price
 

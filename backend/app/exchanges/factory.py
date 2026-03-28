@@ -18,6 +18,10 @@ from app.exchanges.binance import BinanceAdapter
 from app.exchanges.bybit import BybitAdapter
 from app.exchanges.mock import MockExchangeAdapter
 from app.exchanges.okx import OKXAdapter
+from app.exchanges.public_adapter import PublicExchangeAdapter, EXCHANGE_ENDPOINTS
+
+# Exchanges supported by public adapter (no API keys needed)
+_PUBLIC_EXCHANGES = set(EXCHANGE_ENDPOINTS.keys())
 
 # Registry of known exchange constructors
 _EXCHANGE_CONSTRUCTORS: dict[str, type[BaseExchangeAdapter]] = {
@@ -154,8 +158,16 @@ class ExchangeFactory:
 
             if has_keys and not settings.trading.paper_mode:
                 adapter = self.create(name)
+            elif name in _PUBLIC_EXCHANGES:
+                # Use public adapter for real market data (no API keys needed)
+                logger.info(
+                    "ExchangeFactory: using PUBLIC adapter for {} (real market data, read-only)",
+                    name,
+                )
+                adapter = PublicExchangeAdapter(name=name)
+                self._adapters[name] = adapter
             else:
-                # Paper mode or missing keys -> use mock
+                # Fallback to mock for unknown exchanges
                 mock_name = f"mock_{name}" if name != "mock" else "mock"
                 logger.info(
                     "ExchangeFactory: using mock adapter for {} (paper_mode={}, has_keys={})",

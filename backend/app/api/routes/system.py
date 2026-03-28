@@ -185,18 +185,17 @@ async def system_metrics(request: Request) -> SystemMetrics:
     except Exception as exc:
         logger.debug("Failed to fetch live metrics, returning demo data: {}", exc)
 
-    # Fallback demo data
     return SystemMetrics(
-        scan_rate=Decimal("2.5"),
-        opportunity_rate=Decimal("12.3"),
-        execution_rate=Decimal("3.1"),
-        success_rate=Decimal("87.5"),
-        avg_profit=Decimal("1.42"),
-        avg_slippage=Decimal("0.03"),
-        risk_block_rate=Decimal("8.2"),
+        scan_rate=Decimal(0),
+        opportunity_rate=Decimal(0),
+        execution_rate=Decimal(0),
+        success_rate=Decimal(0),
+        avg_profit=Decimal(0),
+        avg_slippage=Decimal(0),
+        risk_block_rate=Decimal(0),
         uptime=uptime,
-        active_strategies=3,
-        active_exchanges=len(settings.trading.enabled_exchanges),
+        active_strategies=0,
+        active_exchanges=0,
         pending_executions=0,
         timestamp=datetime.now(timezone.utc),
     )
@@ -235,20 +234,7 @@ async def list_exchanges() -> list[ExchangeStatus]:
     except Exception as exc:
         logger.debug("Failed to fetch exchanges from DB: {}", exc)
 
-    # Fallback demo data
-    demo_exchanges = [
-        ExchangeStatus(
-            name=name,
-            display_name=name.capitalize(),
-            is_active=True,
-            api_status="CONNECTED",
-            ws_status="CONNECTED",
-            last_heartbeat=datetime.now(timezone.utc),
-            symbols_count=len(settings.strategy.enabled_pairs),
-        )
-        for name in settings.trading.enabled_exchanges
-    ]
-    return demo_exchanges
+    return []
 
 
 @router.get(
@@ -282,15 +268,4 @@ async def ws_status() -> list[WsStatus]:
     except Exception as exc:
         logger.debug("Failed to fetch WS status from DB: {}", exc)
 
-    # Fallback demo data
-    return [
-        WsStatus(
-            exchange=name,
-            connected=True,
-            subscribed_channels=["ticker", "orderbook"],
-            last_message_at=datetime.now(timezone.utc),
-            reconnect_count=0,
-            latency_ms=15,
-        )
-        for name in settings.trading.enabled_exchanges
-    ]
+    return []

@@ -347,8 +347,13 @@ class MockExchangeAdapter(BaseExchangeAdapter):
 
         return order
 
-    async def _fill_order(self, order: StandardOrder) -> None:
+    async def _fill_order(self, order: StandardOrder, *, network_delay: bool = True) -> None:
         """Simulate filling an order against the mock orderbook."""
+        # Simulate network + exchange processing latency (50-300ms)
+        if network_delay:
+            delay = random.uniform(0.05, 0.30)
+            await asyncio.sleep(delay)
+
         mid = self._get_price(order.symbol)
         spread = self._get_spread(order.symbol)
 
@@ -528,6 +533,13 @@ class MockExchangeAdapter(BaseExchangeAdapter):
                 asset: StandardBalance(asset=asset, free=amount, locked=0.0)
                 for asset, amount in initial_balances.items()
             }
+
+    def set_price(self, symbol: str, price: float) -> None:
+        """Override the shared price for *symbol* (before offset is applied).
+
+        Useful for syncing mock adapters with real market data.
+        """
+        MockExchangeAdapter._shared_prices[symbol] = price
 
     @classmethod
     def reset_shared_prices(cls) -> None:

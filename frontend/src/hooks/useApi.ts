@@ -19,43 +19,8 @@ import {
   auditApi,
   scannerApi,
   simulateApi,
-  withMockFallback,
+  liveApi,
 } from "@/lib/api";
-import {
-  mockSystemHealth,
-  mockSystemMetrics,
-  mockExchanges,
-  mockWsStatus,
-  mockTickers,
-  mockSpreads,
-  mockOpportunities,
-  mockStrategies,
-  mockExecutions,
-  mockOrders,
-  mockRiskRules,
-  mockRiskEvents,
-  mockExposure as mockRiskExposure,
-  mockBalances,
-  mockAllocations,
-  mockInventorySummary,
-  mockRebalanceSuggestions,
-  mockPnlSummary,
-  mockProfitTimeline,
-  mockProfitByExchange,
-  mockProfitBySymbol,
-  mockProfitByStrategy,
-  mockFailureAnalysis,
-  mockSlippageAnalysis,
-  mockDashboard,
-  mockAlerts,
-  mockExecutionDetails,
-  mockRiskDecision,
-  mockInventoryExposure,
-  mockScannerStatus,
-  mockAuditEntries,
-  mockAuditStats,
-  mockInventoryFullSummary,
-} from "@/lib/mock-data";
 import type {
   AlertFilterParams,
   AnalyticsParams,
@@ -101,6 +66,7 @@ export const queryKeys = {
     active: ["executions", "active"] as const,
     activeDetail: ["executions", "activeDetail"] as const,
     executionDetail: (id: string) => ["executions", "detail", id] as const,
+    history: ["executions", "history"] as const,
   },
   orders: {
     list: (params?: OrderFilterParams) => ["orders", "list", params] as const,
@@ -172,33 +138,31 @@ type QueryOpts<T> = Omit<UseQueryOptions<T>, "queryKey" | "queryFn">;
 export function useSystemHealth(opts?: QueryOpts<Awaited<ReturnType<typeof systemApi.getHealth>>>) {
   return useQuery({
     queryKey: queryKeys.system.health,
-    queryFn: () => withMockFallback(() => systemApi.getHealth(), mockSystemHealth),
+    queryFn: () => systemApi.getHealth(),
     refetchInterval: 10_000,
     staleTime: 5_000,
     ...opts,
   });
 }
 
-// Keep old name as alias
 export const useHealth = useSystemHealth;
 
 export function useSystemMetrics(opts?: QueryOpts<Awaited<ReturnType<typeof systemApi.getMetrics>>>) {
   return useQuery({
     queryKey: queryKeys.system.metrics,
-    queryFn: () => withMockFallback(() => systemApi.getMetrics(), mockSystemMetrics),
+    queryFn: () => systemApi.getMetrics(),
     refetchInterval: 5_000,
     staleTime: 3_000,
     ...opts,
   });
 }
 
-// Keep old name as alias
 export const useMetrics = useSystemMetrics;
 
 export function useExchanges(opts?: QueryOpts<Awaited<ReturnType<typeof systemApi.getExchanges>>>) {
   return useQuery({
     queryKey: queryKeys.system.exchanges,
-    queryFn: () => withMockFallback(() => systemApi.getExchanges(), mockExchanges),
+    queryFn: () => systemApi.getExchanges(),
     refetchInterval: 15_000,
     staleTime: 10_000,
     ...opts,
@@ -208,7 +172,7 @@ export function useExchanges(opts?: QueryOpts<Awaited<ReturnType<typeof systemAp
 export function useWsStatus(opts?: QueryOpts<Awaited<ReturnType<typeof systemApi.getWsStatus>>>) {
   return useQuery({
     queryKey: queryKeys.system.wsStatus,
-    queryFn: () => withMockFallback(() => systemApi.getWsStatus(), mockWsStatus),
+    queryFn: () => systemApi.getWsStatus(),
     refetchInterval: 10_000,
     staleTime: 5_000,
     ...opts,
@@ -227,21 +191,20 @@ export function useMarketTickers(
   const params = exchange || symbol ? { exchange, symbol } : undefined;
   return useQuery({
     queryKey: queryKeys.market.tickers(params as Record<string, string> | undefined),
-    queryFn: () => withMockFallback(() => marketApi.getTickers(params), mockTickers),
+    queryFn: () => marketApi.getTickers(params),
     refetchInterval: 5_000,
     staleTime: 2_000,
     ...opts,
   });
 }
 
-// Keep old name as alias
 export const useTickers = (
   params?: { symbol?: string; exchange?: string },
   opts?: QueryOpts<Awaited<ReturnType<typeof marketApi.getTickers>>>
 ) => {
   return useQuery({
     queryKey: queryKeys.market.tickers(params as Record<string, string> | undefined),
-    queryFn: () => withMockFallback(() => marketApi.getTickers(params), mockTickers),
+    queryFn: () => marketApi.getTickers(params),
     refetchInterval: 3_000,
     staleTime: 2_000,
     ...opts,
@@ -255,10 +218,7 @@ export function useTicker(
 ) {
   return useQuery({
     queryKey: queryKeys.market.ticker(exchange, symbol),
-    queryFn: () => withMockFallback(
-      () => marketApi.getTicker(exchange, symbol),
-      mockTickers.find((t) => t.exchange === exchange && t.symbol === symbol) ?? mockTickers[0]
-    ),
+    queryFn: () => marketApi.getTicker(exchange, symbol),
     refetchInterval: 2_000,
     staleTime: 1_000,
     ...opts,
@@ -284,24 +244,23 @@ export function useMarketSpreads(
 ) {
   return useQuery({
     queryKey: queryKeys.market.spreads(params as Record<string, string> | undefined),
-    queryFn: () => withMockFallback(() => marketApi.getSpreads(params), mockSpreads),
+    queryFn: () => marketApi.getSpreads(params),
     refetchInterval: 3_000,
     staleTime: 2_000,
     ...opts,
   });
 }
 
-// Keep old name as alias
 export const useSpreads = useMarketSpreads;
 
 // ============================================================
-// Scanner hooks (Phase 3)
+// Scanner hooks
 // ============================================================
 
 export function useScannerStatus() {
   return useQuery({
     queryKey: queryKeys.scanner.status,
-    queryFn: () => withMockFallback(() => scannerApi.getStatus(), mockScannerStatus),
+    queryFn: () => scannerApi.getStatus(),
     refetchInterval: 2_000,
     staleTime: 1_000,
   });
@@ -310,7 +269,7 @@ export function useScannerStatus() {
 export function useScannerOpportunities() {
   return useQuery({
     queryKey: queryKeys.scanner.opportunities,
-    queryFn: () => withMockFallback(() => scannerApi.getOpportunities(), mockOpportunities),
+    queryFn: () => scannerApi.getOpportunities(),
     refetchInterval: 2_000,
     staleTime: 1_000,
   });
@@ -337,7 +296,7 @@ export function useOpportunities(
 ) {
   return useQuery({
     queryKey: queryKeys.market.opportunities(params),
-    queryFn: () => withMockFallback(() => marketApi.getOpportunities(params), mockOpportunities),
+    queryFn: () => marketApi.getOpportunities(params),
     refetchInterval: 3_000,
     staleTime: 2_000,
     ...opts,
@@ -351,7 +310,7 @@ export function useOpportunities(
 export function useStrategies(opts?: QueryOpts<Awaited<ReturnType<typeof strategyApi.getStrategies>>>) {
   return useQuery({
     queryKey: queryKeys.strategies.all,
-    queryFn: () => withMockFallback(() => strategyApi.getStrategies(), mockStrategies),
+    queryFn: () => strategyApi.getStrategies(),
     refetchInterval: 30_000,
     staleTime: 15_000,
     ...opts,
@@ -364,10 +323,7 @@ export function useStrategy(
 ) {
   return useQuery({
     queryKey: queryKeys.strategies.detail(id),
-    queryFn: () => withMockFallback(
-      () => strategyApi.getStrategy(id),
-      mockStrategies.find((s) => s.id === id) ?? mockStrategies[0]
-    ),
+    queryFn: () => strategyApi.getStrategy(id),
     ...opts,
   });
 }
@@ -414,10 +370,7 @@ export function useExecutions(
 ) {
   return useQuery({
     queryKey: queryKeys.executions.list(params),
-    queryFn: () => withMockFallback(
-      () => executionApi.getExecutions(params),
-      { data: mockExecutions, total: mockExecutions.length, page: 1, pageSize: 20, totalPages: 1 }
-    ),
+    queryFn: () => executionApi.getExecutions(params),
     refetchInterval: 5_000,
     staleTime: 3_000,
     ...opts,
@@ -430,10 +383,7 @@ export function useExecution(
 ) {
   return useQuery({
     queryKey: queryKeys.executions.detail(id),
-    queryFn: () => withMockFallback(
-      () => executionApi.getExecution(id),
-      mockExecutions.find((e) => e.id === id) ?? mockExecutions[0]
-    ),
+    queryFn: () => executionApi.getExecution(id),
     ...opts,
   });
 }
@@ -443,10 +393,7 @@ export function useActiveExecutions(
 ) {
   return useQuery({
     queryKey: queryKeys.executions.active,
-    queryFn: () => withMockFallback(
-      () => executionApi.getActiveExecutions(),
-      mockExecutions.filter((e) => e.status === "executing")
-    ),
+    queryFn: () => executionApi.getActiveExecutions(),
     refetchInterval: 2_000,
     staleTime: 1_000,
     ...opts,
@@ -456,10 +403,7 @@ export function useActiveExecutions(
 export function useExecutionDetail(id: string) {
   return useQuery({
     queryKey: queryKeys.executions.executionDetail(id),
-    queryFn: () => withMockFallback(
-      () => executionApi.getExecutionDetail(id),
-      mockExecutionDetails.find((e) => e.execution_id === id) ?? mockExecutionDetails[0]
-    ),
+    queryFn: () => executionApi.getExecutionDetail(id),
     enabled: !!id,
     staleTime: 2_000,
   });
@@ -500,6 +444,15 @@ export function useTriggerExecution() {
   });
 }
 
+export function useExecutionHistory() {
+  return useQuery({
+    queryKey: queryKeys.executions.history,
+    queryFn: () => executionApi.getHistory(100),
+    refetchInterval: 10_000,
+    staleTime: 5_000,
+  });
+}
+
 // ============================================================
 // Order hooks
 // ============================================================
@@ -510,10 +463,7 @@ export function useOrders(
 ) {
   return useQuery({
     queryKey: queryKeys.orders.list(params),
-    queryFn: () => withMockFallback(
-      () => orderApi.getOrders(params),
-      { data: mockOrders, total: mockOrders.length, page: 1, pageSize: 20, totalPages: 1 }
-    ),
+    queryFn: () => orderApi.getOrders(params),
     refetchInterval: 5_000,
     ...opts,
   });
@@ -525,10 +475,7 @@ export function useOrder(
 ) {
   return useQuery({
     queryKey: queryKeys.orders.detail(id),
-    queryFn: () => withMockFallback(
-      () => orderApi.getOrder(id),
-      mockOrders.find((o) => o.id === id) ?? mockOrders[0]
-    ),
+    queryFn: () => orderApi.getOrder(id),
     ...opts,
   });
 }
@@ -540,7 +487,7 @@ export function useOrder(
 export function useRiskRules(opts?: QueryOpts<Awaited<ReturnType<typeof riskApi.getRiskRules>>>) {
   return useQuery({
     queryKey: queryKeys.risk.rules,
-    queryFn: () => withMockFallback(() => riskApi.getRiskRules(), mockRiskRules),
+    queryFn: () => riskApi.getRiskRules(),
     refetchInterval: 30_000,
     staleTime: 15_000,
     ...opts,
@@ -561,7 +508,7 @@ export function useUpdateRiskRule() {
 export function useRiskEvents(params?: { severity?: string; limit?: number }) {
   return useQuery({
     queryKey: queryKeys.risk.events(params),
-    queryFn: () => withMockFallback(() => riskApi.getRiskEvents(params), mockRiskEvents),
+    queryFn: () => riskApi.getRiskEvents(params),
     refetchInterval: 10_000,
     staleTime: 5_000,
   });
@@ -570,14 +517,13 @@ export function useRiskEvents(params?: { severity?: string; limit?: number }) {
 export function useRiskExposure(opts?: QueryOpts<Awaited<ReturnType<typeof riskApi.getExposure>>>) {
   return useQuery({
     queryKey: queryKeys.risk.exposure,
-    queryFn: () => withMockFallback(() => riskApi.getExposure(), mockRiskExposure),
+    queryFn: () => riskApi.getExposure(),
     refetchInterval: 5_000,
     staleTime: 3_000,
     ...opts,
   });
 }
 
-// Keep old name as alias
 export const useExposure = useRiskExposure;
 
 export function useRiskCheck() {
@@ -597,14 +543,13 @@ export function useInventoryBalances(
 ) {
   return useQuery({
     queryKey: queryKeys.inventory.balances(params as Record<string, string> | undefined),
-    queryFn: () => withMockFallback(() => inventoryApi.getBalances(params), mockBalances),
+    queryFn: () => inventoryApi.getBalances(params),
     refetchInterval: 15_000,
     staleTime: 10_000,
     ...opts,
   });
 }
 
-// Keep old name as alias
 export const useBalances = useInventoryBalances;
 
 export function useExchangeBalances(
@@ -613,10 +558,7 @@ export function useExchangeBalances(
 ) {
   return useQuery({
     queryKey: queryKeys.inventory.exchangeBalances(exchange),
-    queryFn: () => withMockFallback(
-      () => inventoryApi.getExchangeBalances(exchange),
-      mockAllocations.find((a) => a.exchange === exchange) ?? mockAllocations[0]
-    ),
+    queryFn: () => inventoryApi.getExchangeBalances(exchange),
     refetchInterval: 15_000,
     staleTime: 10_000,
     ...opts,
@@ -628,7 +570,7 @@ export function useAllocation(
 ) {
   return useQuery({
     queryKey: queryKeys.inventory.allocation,
-    queryFn: () => withMockFallback(() => inventoryApi.getAllocation(), mockInventorySummary),
+    queryFn: () => inventoryApi.getAllocation(),
     refetchInterval: 30_000,
     staleTime: 15_000,
     ...opts,
@@ -640,7 +582,7 @@ export function useRebalanceSuggestions(
 ) {
   return useQuery({
     queryKey: queryKeys.inventory.rebalance,
-    queryFn: () => withMockFallback(() => inventoryApi.getRebalanceSuggestions(), mockRebalanceSuggestions),
+    queryFn: () => inventoryApi.getRebalanceSuggestions(),
     refetchInterval: 60_000,
     staleTime: 30_000,
     ...opts,
@@ -650,7 +592,7 @@ export function useRebalanceSuggestions(
 export function useInventoryExposure() {
   return useQuery({
     queryKey: queryKeys.inventory.exposure,
-    queryFn: () => withMockFallback(() => inventoryApi.getExposure(), mockInventoryExposure),
+    queryFn: () => inventoryApi.getExposure(),
     refetchInterval: 10_000,
     staleTime: 5_000,
   });
@@ -659,7 +601,7 @@ export function useInventoryExposure() {
 export function useInventorySummary() {
   return useQuery({
     queryKey: queryKeys.inventory.summary,
-    queryFn: () => withMockFallback(() => inventoryApi.getSummary(), mockInventoryFullSummary),
+    queryFn: () => inventoryApi.getSummary(),
     refetchInterval: 10_000,
     staleTime: 5_000,
   });
@@ -673,7 +615,7 @@ export function useAnalyticsSummary(hours?: number, params?: AnalyticsParams) {
   const fullParams = hours ? { ...params, interval: `${hours}h` as any } : params;
   return useQuery({
     queryKey: queryKeys.analytics.summary(fullParams),
-    queryFn: () => withMockFallback(() => analyticsApi.getSummary(fullParams), mockPnlSummary),
+    queryFn: () => analyticsApi.getSummary(fullParams),
     refetchInterval: 30_000,
     staleTime: 15_000,
   });
@@ -682,19 +624,18 @@ export function useAnalyticsSummary(hours?: number, params?: AnalyticsParams) {
 export function useProfitByPeriod(params?: AnalyticsParams) {
   return useQuery({
     queryKey: queryKeys.analytics.profit(params),
-    queryFn: () => withMockFallback(() => analyticsApi.getProfit(params), mockProfitTimeline),
+    queryFn: () => analyticsApi.getProfit(params),
     refetchInterval: 30_000,
     staleTime: 15_000,
   });
 }
 
-// Keep old name as alias
 export const useProfit = useProfitByPeriod;
 
 export function useProfitByExchange(params?: AnalyticsParams) {
   return useQuery({
     queryKey: queryKeys.analytics.profitByExchange(params),
-    queryFn: () => withMockFallback(() => analyticsApi.getProfitByExchange(params), mockProfitByExchange),
+    queryFn: () => analyticsApi.getProfitByExchange(params),
     refetchInterval: 30_000,
     staleTime: 15_000,
   });
@@ -703,7 +644,7 @@ export function useProfitByExchange(params?: AnalyticsParams) {
 export function useProfitBySymbol(params?: AnalyticsParams) {
   return useQuery({
     queryKey: queryKeys.analytics.profitBySymbol(params),
-    queryFn: () => withMockFallback(() => analyticsApi.getProfitBySymbol(params), mockProfitBySymbol),
+    queryFn: () => analyticsApi.getProfitBySymbol(params),
     refetchInterval: 30_000,
     staleTime: 15_000,
   });
@@ -712,7 +653,7 @@ export function useProfitBySymbol(params?: AnalyticsParams) {
 export function useProfitByStrategy(params?: AnalyticsParams) {
   return useQuery({
     queryKey: queryKeys.analytics.profitByStrategy(params),
-    queryFn: () => withMockFallback(() => analyticsApi.getProfitByStrategy(params), mockProfitByStrategy),
+    queryFn: () => analyticsApi.getProfitByStrategy(params),
     refetchInterval: 30_000,
     staleTime: 15_000,
   });
@@ -721,37 +662,34 @@ export function useProfitByStrategy(params?: AnalyticsParams) {
 export function useFailureAnalysis(params?: AnalyticsParams) {
   return useQuery({
     queryKey: queryKeys.analytics.failures(params),
-    queryFn: () => withMockFallback(() => analyticsApi.getFailures(params), mockFailureAnalysis),
+    queryFn: () => analyticsApi.getFailures(params),
     refetchInterval: 60_000,
     staleTime: 30_000,
   });
 }
 
-// Keep old name as alias
 export const useFailures = useFailureAnalysis;
 
 export function useSlippageAnalysis(params?: AnalyticsParams) {
   return useQuery({
     queryKey: queryKeys.analytics.slippage(params),
-    queryFn: () => withMockFallback(() => analyticsApi.getSlippage(params), mockSlippageAnalysis),
+    queryFn: () => analyticsApi.getSlippage(params),
     refetchInterval: 60_000,
     staleTime: 30_000,
   });
 }
 
-// Keep old name as alias
 export const useSlippage = useSlippageAnalysis;
 
 export function useAnalyticsDashboard(params?: AnalyticsParams) {
   return useQuery({
     queryKey: queryKeys.analytics.dashboard(params),
-    queryFn: () => withMockFallback(() => analyticsApi.getDashboard(params), mockDashboard),
+    queryFn: () => analyticsApi.getDashboard(params),
     refetchInterval: 15_000,
     staleTime: 10_000,
   });
 }
 
-// Keep old name as alias
 export const useDashboard = useAnalyticsDashboard;
 
 // ============================================================
@@ -764,10 +702,7 @@ export function useAlerts(
 ) {
   return useQuery({
     queryKey: queryKeys.alerts.list(params),
-    queryFn: () => withMockFallback(
-      () => alertApi.getAlerts(params),
-      { data: mockAlerts, total: mockAlerts.length, page: 1, pageSize: 20, totalPages: 1 }
-    ),
+    queryFn: () => alertApi.getAlerts(params),
     refetchInterval: 10_000,
     staleTime: 5_000,
     ...opts,
@@ -780,10 +715,7 @@ export function useAlert(
 ) {
   return useQuery({
     queryKey: queryKeys.alerts.detail(id),
-    queryFn: () => withMockFallback(
-      () => alertApi.getAlert(id),
-      mockAlerts.find((a) => a.id === id) ?? mockAlerts[0]
-    ),
+    queryFn: () => alertApi.getAlert(id),
     ...opts,
   });
 }
@@ -793,10 +725,7 @@ export function useActiveAlerts(
 ) {
   return useQuery({
     queryKey: queryKeys.alerts.active,
-    queryFn: () => withMockFallback(
-      () => alertApi.getActiveAlerts(),
-      mockAlerts.filter((a) => !a.resolved)
-    ),
+    queryFn: () => alertApi.getActiveAlerts(),
     refetchInterval: 5_000,
     staleTime: 3_000,
     ...opts,
@@ -834,13 +763,13 @@ export function useResolveAlert() {
 }
 
 // ============================================================
-// Audit hooks (Phase 3)
+// Audit hooks
 // ============================================================
 
 export function useAuditEntries(params?: { entity_type?: string; entity_id?: string; event_type?: string; limit?: number; offset?: number }) {
   return useQuery({
     queryKey: queryKeys.audit.entries(params as Record<string, unknown> | undefined),
-    queryFn: () => withMockFallback(() => auditApi.getEntries(params), mockAuditEntries),
+    queryFn: () => auditApi.getEntries(params),
     staleTime: 10_000,
   });
 }
@@ -848,10 +777,7 @@ export function useAuditEntries(params?: { entity_type?: string; entity_id?: str
 export function useExecutionAudit(executionId: string) {
   return useQuery({
     queryKey: queryKeys.audit.executionAudit(executionId),
-    queryFn: () => withMockFallback(
-      () => auditApi.getExecutionAudit(executionId),
-      mockAuditEntries.filter((a) => a.entity_id === executionId)
-    ),
+    queryFn: () => auditApi.getExecutionAudit(executionId),
     enabled: !!executionId,
     staleTime: 5_000,
   });
@@ -860,7 +786,31 @@ export function useExecutionAudit(executionId: string) {
 export function useAuditStats() {
   return useQuery({
     queryKey: queryKeys.audit.stats,
-    queryFn: () => withMockFallback(() => auditApi.getStats(), mockAuditStats),
+    queryFn: () => auditApi.getStats(),
     staleTime: 30_000,
+  });
+}
+
+// ============================================================
+// Live trading hooks
+// ============================================================
+
+export function useAutoExecution() {
+  return useQuery({
+    queryKey: ["live", "auto-execution"] as const,
+    queryFn: () => liveApi.getAutoExecution(),
+    refetchInterval: 10_000,
+    staleTime: 5_000,
+  });
+}
+
+export function useSetAutoExecution() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { enabled?: boolean; trade_size_usdt?: number }) =>
+      liveApi.setAutoExecution(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["live", "auto-execution"] });
+    },
   });
 }
