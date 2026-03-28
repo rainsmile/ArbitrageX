@@ -312,6 +312,10 @@ class CrossExchangeScanner:
             # Final net profit after fees and slippage
             estimated_net_profit_pct = net_after_fees - slippage_pct
 
+            # Skip opportunities whose net profit is below the minimum threshold
+            if estimated_net_profit_pct < self._min_profit_pct:
+                continue
+
             executable_value = executable_qty * avg_buy_price
 
             # Confidence score based on depth, spread stability, and profit margin
