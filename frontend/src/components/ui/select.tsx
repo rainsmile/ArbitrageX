@@ -20,7 +20,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
     const selectId = id || label?.toLowerCase().replace(/\s+/g, "-");
 
     return (
-      <div className="w-full">
+      <div className={cn("inline-block", className)}>
         {label && (
           <label
             htmlFor={selectId}
@@ -40,7 +40,6 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
               "focus:outline-none focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/20",
               "disabled:opacity-50 disabled:cursor-not-allowed",
               error && "border-danger-500/50",
-              className
             )}
             {...props}
           >
