@@ -156,8 +156,8 @@ class WebSocketManager {
         }
       };
 
-      ws.onerror = (event) => {
-        console.error(`[WS] Error on ${channel}:`, event);
+      ws.onerror = () => {
+        console.warn(`[WS] Connection error on ${channel}, will retry`);
         this.setStatus(channel, "error");
       };
 
@@ -175,7 +175,7 @@ class WebSocketManager {
 
       state.ws = ws;
     } catch (err) {
-      console.error(`[WS] Failed to create connection for ${channel}:`, err);
+      console.warn(`[WS] Failed to create connection for ${channel}:`, err);
       this.setStatus(channel, "error");
       this.scheduleReconnect(channel);
     }
@@ -263,7 +263,7 @@ class WebSocketManager {
     if (!state) return;
 
     if (state.retryCount >= MAX_RETRIES) {
-      console.error(
+      console.warn(
         `[WS] Max retries (${MAX_RETRIES}) exceeded for ${channel}`
       );
       this.setStatus(channel, "error");
