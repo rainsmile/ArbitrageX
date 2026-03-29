@@ -297,7 +297,7 @@ function StrategiesTab() {
                   <h3 className="text-sm font-semibold text-white">{strategy.name}</h3>
                   <Badge
                     variant={
-                      strategy.type === "spatial" ? "info" :
+                      strategy.type === "cross_exchange" ? "info" :
                       strategy.type === "triangular" ? "success" :
                       strategy.type === "funding_rate" ? "warning" : "neutral"
                     }

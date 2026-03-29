@@ -696,7 +696,7 @@ export default function AnalyticsPage() {
                       <div className="flex items-center gap-1.5">
                         <Badge
                           variant={
-                            item.type === "spatial" ? "info" :
+                            item.type === "cross_exchange" ? "info" :
                             item.type === "triangular" ? "success" :
                             item.type === "funding_rate" ? "warning" : "neutral"
                           }

@@ -54,7 +54,7 @@ interface OpportunityDisplay extends ArbitrageOpportunity {
 
 const strategyOptions = [
   { value: "all", label: "全部策略" },
-  { value: "spatial", label: "跨交易所" },
+  { value: "cross_exchange", label: "跨交易所" },
   { value: "triangular", label: "三角套利" },
   { value: "funding_rate", label: "期现套利" },
   { value: "statistical", label: "统计套利" },
@@ -75,11 +75,10 @@ const sortOptions = [
 ];
 
 const strategyColors: Record<string, { variant: "success" | "info" | "warning" | "danger" | "neutral"; label: string }> = {
-  spatial: { variant: "info", label: "跨交易所" },
+  cross_exchange: { variant: "info", label: "跨交易所" },
   triangular: { variant: "warning", label: "三角套利" },
   funding_rate: { variant: "success", label: "期现套利" },
   statistical: { variant: "neutral", label: "统计套利" },
-  cross_exchange: { variant: "info", label: "跨交易所" },
 };
 
 const statusColors: Record<string, "success" | "info" | "warning" | "danger" | "neutral"> = {
@@ -169,7 +168,7 @@ function OpportunityDrawer({
   opp: OpportunityDisplay;
   onClose: () => void;
 }) {
-  const strat = strategyColors[opp.type] ?? strategyColors.spatial;
+  const strat = strategyColors[opp.type] ?? strategyColors.cross_exchange;
   const [showDebug, setShowDebug] = useState(false);
 
   return (
@@ -414,7 +413,7 @@ function OpportunityRow({
   index: number;
   onSelect: (opp: OpportunityDisplay) => void;
 }) {
-  const strat = strategyColors[opp.type] ?? strategyColors.spatial;
+  const strat = strategyColors[opp.type] ?? strategyColors.cross_exchange;
   const statusVariant = statusColors[opp.status] ?? "neutral";
   const isExecutable = opp.status === "DETECTED";
   const isRejected = opp.status === "REJECTED";

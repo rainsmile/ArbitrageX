@@ -201,11 +201,6 @@ function normalizeExecutionResult(raw: Record<string, any>): ExecutionPlan {
     PENDING: "pending",
     SUBMITTING: "pending",
   };
-  const strategyMap: Record<string, string> = {
-    CROSS_EXCHANGE: "cross_exchange",
-    TRIANGULAR: "triangular",
-    FUTURES_SPOT: "funding_rate",
-  };
   const state = raw.state ?? "COMPLETED";
   const legs = (raw.legs_detail ?? []).map((l: any, i: number) => ({
     id: l.order_id ?? `leg-${i}`,
@@ -249,7 +244,7 @@ function normalizeExecutionResult(raw: Record<string, any>): ExecutionPlan {
     id: raw.execution_id ?? "",
     opportunityId: raw.opportunity_id ?? "",
     strategyId: "",
-    strategyType: (strategyMap[raw.strategy_type] ?? raw.strategy_type ?? "cross_exchange") as any,
+    strategyType: normalizeStrategyType(raw.strategy_type ?? "cross_exchange"),
     symbol: raw.symbol ?? "",
     status: (stateToStatus[state] ?? "completed") as any,
     legs,
@@ -267,6 +262,23 @@ function normalizeExecutionResult(raw: Record<string, any>): ExecutionPlan {
   };
 }
 
+/** Map backend strategy_type strings to the frontend StrategyType union. */
+function normalizeStrategyType(raw: string): ArbitrageOpportunity["type"] {
+  const map: Record<string, ArbitrageOpportunity["type"]> = {
+    cross_exchange: "cross_exchange",
+    CROSS_EXCHANGE: "cross_exchange",
+    spatial: "cross_exchange",
+    triangular: "triangular",
+    TRIANGULAR: "triangular",
+    futures_spot: "funding_rate",
+    FUTURES_SPOT: "funding_rate",
+    funding_rate: "funding_rate",
+    statistical: "statistical",
+    STATISTICAL: "statistical",
+  };
+  return map[raw] ?? map[raw.toLowerCase()] ?? "cross_exchange";
+}
+
 function normalizeOpportunity(raw: Record<string, any>): ArbitrageOpportunity {
   const n = (v: any) => Number(v) || 0;
   const ts = (v: any) => {
@@ -276,7 +288,7 @@ function normalizeOpportunity(raw: Record<string, any>): ArbitrageOpportunity {
   };
   return {
     id: raw.id ?? "",
-    type: (raw.strategy_type ?? raw.type ?? "cross_exchange").toLowerCase().replace("cross_exchange", "cross_exchange") as any,
+    type: normalizeStrategyType(raw.strategy_type ?? raw.type ?? "cross_exchange"),
     symbol: raw.symbol ?? "",
     buyExchange: (raw.buy_exchange ?? raw.buyExchange ?? "") as ExchangeId,
     sellExchange: (raw.sell_exchange ?? raw.sellExchange ?? "") as ExchangeId,
@@ -636,9 +648,9 @@ function normalizeProfitBySymbol(raw: Record<string, unknown>): ProfitBySymbol {
 }
 
 function normalizeProfitByStrategy(raw: Record<string, unknown>): ProfitByStrategy {
-  const sType = (raw.strategy_type ?? raw.strategyType ?? "spatial") as string;
+  const sType = (raw.strategy_type ?? raw.strategyType ?? "cross_exchange") as string;
   return {
-    strategyType: sType.toLowerCase() as ProfitByStrategy["strategyType"],
+    strategyType: normalizeStrategyType(sType),
     strategyId: (raw.strategy_id ?? raw.strategyId ?? "") as string,
     strategyName: (raw.strategy_name ?? raw.strategyName ?? sType) as string,
     pnl: toNum(raw.net_profit_usdt ?? raw.pnl),
@@ -802,7 +814,7 @@ function normalizeDashboard(raw: any): AnalyticsDashboard {
   }));
 
   const profitByStrategy: ProfitByStrategy[] = (raw.profit_by_strategy ?? raw.profitByStrategy ?? []).map((s: any) => ({
-    strategyType: (s.strategy_type ?? s.strategyType ?? "cross_exchange").toLowerCase() as any,
+    strategyType: normalizeStrategyType(s.strategy_type ?? s.strategyType ?? "cross_exchange"),
     strategyId: s.strategy_id ?? s.strategyId ?? s.strategy_type ?? "",
     strategyName: s.strategy_name ?? s.strategyName ?? s.strategy_type ?? "",
     pnl: n(s.net_profit_usdt ?? s.pnl),
