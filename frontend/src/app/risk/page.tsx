@@ -253,8 +253,8 @@ export default function RiskPage() {
       {/* ================================================================== */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         {/* ---- Left Column (60%): Risk Rules ---- */}
-        <div className="lg:col-span-3 space-y-6">
-          <Card>
+        <div className="lg:col-span-3 flex flex-col">
+          <Card className="flex-1">
             <CardHeader>风控规则面板</CardHeader>
             <CardContent>
               <div className="space-y-6">
@@ -343,10 +343,10 @@ export default function RiskPage() {
         </div>
 
         {/* ---- Right Column (40%): Risk Events Timeline ---- */}
-        <div className="lg:col-span-2">
-          <Card>
+        <div className="lg:col-span-2 flex flex-col">
+          <Card className="flex-1 flex flex-col min-h-0">
             <CardHeader>风险事件时间线</CardHeader>
-            <CardContent>
+            <CardContent className="flex-1 min-h-0 overflow-y-auto">
               {sortedEvents.length === 0 ? (
                 <div className="py-12 text-center text-sm text-slate-600">暂无风险事件</div>
               ) : (
