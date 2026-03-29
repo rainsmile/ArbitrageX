@@ -77,7 +77,12 @@ async def get_all_balances(
 
     rows, ok = await _fetch_balances(db)
     if ok and rows:
-        return [BalanceSchema.model_validate(bal) for bal, _, _ in rows]
+        result = []
+        for bal, ex_name, _ in rows:
+            schema = BalanceSchema.model_validate(bal)
+            schema.exchange_name = ex_name
+            result.append(schema)
+        return result
     return []
 
 
@@ -94,7 +99,12 @@ async def get_exchange_balances(
 
     rows, ok = await _fetch_balances(db, exchange_name=exchange)
     if ok and rows:
-        return [BalanceSchema.model_validate(bal) for bal, _, _ in rows]
+        result = []
+        for bal, ex_name, _ in rows:
+            schema = BalanceSchema.model_validate(bal)
+            schema.exchange_name = ex_name
+            result.append(schema)
+        return result
     if ok and not rows:
         raise HTTPException(status_code=404, detail=f"No balances found for exchange '{exchange}'")
     return []
@@ -211,14 +221,45 @@ async def get_rebalance_suggestions(
     "/exposure",
     summary="Get current exposure breakdown",
 )
-async def get_exposure(request: Request):
-    """Return the current exposure breakdown from the InventoryManager."""
+async def get_exposure(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Return the current exposure breakdown from the InventoryManager,
+    falling back to database if the manager has no data."""
 
+    # Try InventoryManager first (live exchange data)
     inventory_manager = getattr(request.app.state, "inventory_manager", None)
     if inventory_manager is not None:
         exposure = inventory_manager.get_exposure()
         if exposure and exposure.get("total_value_usdt", 0) > 0:
             return exposure
+
+    # Fallback: build exposure from database balances
+    rows, ok = await _fetch_balances(db)
+    if ok and rows:
+        grand_total = Decimal(0)
+        per_exchange: dict[str, float] = {}
+        per_asset: dict[str, float] = {}
+
+        for bal, ex_name, _ in rows:
+            usd_val = Decimal(str(bal.usd_value)) if bal.usd_value else Decimal(0)
+            grand_total += usd_val
+            per_exchange[ex_name] = per_exchange.get(ex_name, 0) + float(usd_val)
+            per_asset[bal.asset] = per_asset.get(bal.asset, 0) + float(usd_val)
+
+        # Concentration risk: max single-asset percentage
+        concentration_risk = 0.0
+        if grand_total > 0:
+            max_asset_val = max(per_asset.values()) if per_asset else 0
+            concentration_risk = max_asset_val / float(grand_total) * 100
+
+        return {
+            "total_value_usdt": float(grand_total),
+            "per_exchange": per_exchange,
+            "per_asset": per_asset,
+            "concentration_risk": round(concentration_risk, 2),
+        }
 
     return {
         "total_value_usdt": 0,
@@ -232,15 +273,57 @@ async def get_exposure(request: Request):
     "/summary",
     summary="Get inventory summary",
 )
-async def get_inventory_summary(request: Request):
-    """Return a comprehensive inventory summary from the InventoryManager."""
+async def get_inventory_summary(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Return a comprehensive inventory summary from the InventoryManager,
+    falling back to database if the manager has no data."""
 
+    # Try InventoryManager first (live exchange data)
     inventory_manager = getattr(request.app.state, "inventory_manager", None)
     if inventory_manager is not None:
         summary = inventory_manager.get_inventory_summary()
-        # Check if manager returned meaningful data
         if summary and summary.get("total_value_usdt", 0) > 0:
             return summary
+
+    # Fallback: build summary from database balances
+    rows, ok = await _fetch_balances(db)
+    if ok and rows:
+        grand_total = Decimal(0)
+        exchange_set: set[str] = set()
+        asset_set: set[str] = set()
+        stablecoin_balance = Decimal(0)
+        exchange_totals: dict[str, Decimal] = {}
+
+        stablecoins = {"USDT", "USDC", "BUSD", "DAI", "TUSD", "FDUSD"}
+
+        for bal, ex_name, _ in rows:
+            usd_val = Decimal(str(bal.usd_value)) if bal.usd_value else Decimal(0)
+            grand_total += usd_val
+            exchange_set.add(ex_name)
+            asset_set.add(bal.asset)
+            if bal.asset in stablecoins:
+                stablecoin_balance += Decimal(str(bal.total))
+            exchange_totals[ex_name] = exchange_totals.get(ex_name, Decimal(0)) + usd_val
+
+        allocations = []
+        for ex_name, total in exchange_totals.items():
+            pct = (total / grand_total * 100) if grand_total > 0 else Decimal(0)
+            allocations.append({
+                "exchange": ex_name,
+                "total_usd_value": float(total),
+                "pct_of_portfolio": float(pct),
+            })
+
+        return {
+            "total_value_usdt": float(grand_total),
+            "exchange_count": len(exchange_set),
+            "asset_count": len(asset_set),
+            "last_refresh_at": datetime.now(timezone.utc).timestamp(),
+            "stablecoin_balance": float(stablecoin_balance),
+            "allocations": allocations,
+        }
 
     return {
         "total_value_usdt": 0,

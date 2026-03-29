@@ -558,25 +558,107 @@ export const riskApi = {
 // Inventory API
 // ============================================================
 
+// ---------------------------------------------------------------------------
+// Inventory normalizers (backend snake_case → frontend camelCase)
+// ---------------------------------------------------------------------------
+
+function normalizeBalance(raw: Record<string, unknown>): Balance {
+  return {
+    asset: (raw.asset as string) ?? "",
+    exchange: (raw.exchange_name ?? raw.exchange ?? "") as ExchangeId,
+    free: Number(raw.free ?? 0),
+    locked: Number(raw.locked ?? 0),
+    total: Number(raw.total ?? 0),
+    usdValue: Number(raw.usd_value ?? raw.usdValue ?? 0),
+    updatedAt: (raw.updated_at ?? raw.updatedAt ?? "") as string,
+  };
+}
+
+function normalizeExchangeAllocation(raw: Record<string, unknown>): ExchangeAllocation {
+  const balances = Array.isArray(raw.balances) ? raw.balances : (Array.isArray(raw.assets) ? raw.assets : []);
+  return {
+    exchange: (raw.exchange as string ?? "") as ExchangeId,
+    totalUsd: Number(raw.total_usd_value ?? raw.totalUsd ?? 0),
+    percentOfTotal: Number(raw.pct_of_portfolio ?? raw.percentOfTotal ?? 0),
+    assets: balances.map((b: Record<string, unknown>) => normalizeBalance(b)),
+    status: (raw.status as ExchangeAllocation["status"]) ?? "connected",
+  };
+}
+
+function normalizeInventorySummary(raw: Record<string, unknown>): InventorySummary {
+  const allocations = Array.isArray(raw.allocations) ? raw.allocations : [];
+  const exchanges = allocations.map((a: Record<string, unknown>) => normalizeExchangeAllocation(a));
+  return {
+    totalValueUsd: Number(raw.total_usd_value ?? raw.totalValueUsd ?? 0),
+    change24h: Number(raw.change_24h ?? raw.change24h ?? 0),
+    changePercent24h: Number(raw.change_percent_24h ?? raw.changePercent24h ?? 0),
+    exchanges,
+    topAssets: Array.isArray(raw.assets)
+      ? raw.assets.map((a: Record<string, unknown>) => ({
+          asset: (a.asset as string) ?? "",
+          totalUsd: Number(a.total_usd_value ?? 0),
+          percent: Number(a.pct ?? 0),
+        }))
+      : [],
+  };
+}
+
+function normalizeRebalanceSuggestion(raw: Record<string, unknown>): RebalanceSuggestion {
+  return {
+    id: String(raw.id ?? ""),
+    fromExchange: (raw.from_exchange ?? raw.fromExchange ?? "") as ExchangeId,
+    toExchange: (raw.to_exchange ?? raw.toExchange ?? "") as ExchangeId,
+    asset: (raw.asset as string) ?? "",
+    amount: Number(raw.suggested_quantity ?? raw.amount ?? 0),
+    usdValue: Number(raw.usd_value ?? raw.usdValue ?? 0),
+    reason: (raw.reason as string) ?? "",
+    priority: (raw.priority as RebalanceSuggestion["priority"]) ?? "low",
+    estimatedCost: Number(raw.estimated_cost ?? raw.estimatedCost ?? 0),
+    estimatedTime: (raw.estimated_time ?? raw.estimatedTime ?? "") as string,
+  };
+}
+
+function normalizeInventoryFullSummary(raw: Record<string, unknown>): InventoryFullSummary {
+  const allocations = Array.isArray(raw.allocations) ? raw.allocations : [];
+  return {
+    total_value_usdt: Number(raw.total_value_usdt ?? 0),
+    exchange_count: Number(raw.exchange_count ?? 0),
+    asset_count: Number(raw.asset_count ?? 0),
+    last_refresh_at: Number(raw.last_refresh_at ?? 0),
+    stablecoin_balance: Number(raw.stablecoin_balance ?? 0),
+    allocations: allocations.map((a: Record<string, unknown>) => normalizeExchangeAllocation(a)),
+  };
+}
+
 export const inventoryApi = {
-  getBalances: (params?: { exchange?: string; asset?: string }) =>
-    request<Balance[]>("/api/inventory/balances", { params }),
+  getBalances: async (params?: { exchange?: string; asset?: string }) => {
+    const raw = await request<Record<string, unknown>[]>("/api/inventory/balances", { params });
+    return (Array.isArray(raw) ? raw : []).map(normalizeBalance);
+  },
 
-  getExchangeBalances: (exchange: string) =>
-    request<ExchangeAllocation>(`/api/inventory/balances/${exchange}`),
+  getExchangeBalances: async (exchange: string) => {
+    const raw = await request<Record<string, unknown>>(`/api/inventory/balances/${exchange}`);
+    return normalizeExchangeAllocation(raw);
+  },
 
-  getAllocation: () =>
-    request<InventorySummary>("/api/inventory/allocation"),
+  getAllocation: async () => {
+    const raw = await request<Record<string, unknown>>("/api/inventory/allocation");
+    return normalizeInventorySummary(raw);
+  },
 
-  getRebalanceSuggestions: () =>
-    request<RebalanceSuggestion[]>("/api/inventory/rebalance"),
+  getRebalanceSuggestions: async () => {
+    const raw = await request<Record<string, unknown>[]>("/api/inventory/rebalance-suggestions");
+    return (Array.isArray(raw) ? raw : []).map(normalizeRebalanceSuggestion);
+  },
 
   // Phase 3: Enhanced inventory endpoints
   getExposure: () =>
     get<ExposureData>('/api/inventory/exposure'),
 
-  getSummary: () =>
-    get<InventoryFullSummary>('/api/inventory/summary'),
+  getSummary: async () => {
+    const raw = await get<Record<string, unknown>>('/api/inventory/summary');
+    return normalizeInventoryFullSummary(raw);
+  },
 };
 
 // ============================================================

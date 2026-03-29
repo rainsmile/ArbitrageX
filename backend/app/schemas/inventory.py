@@ -24,6 +24,7 @@ class BalanceSchema(BaseModel):
 
     id: uuid.UUID = Field(description="Balance record unique identifier")
     exchange_id: uuid.UUID = Field(description="Parent exchange UUID")
+    exchange_name: Optional[str] = Field(default=None, description="Exchange name (populated by the API)")
     asset: str = Field(description="Asset symbol (e.g. BTC, USDT)")
     free: Decimal = Field(description="Available (unencumbered) balance")
     locked: Decimal = Field(description="Balance locked in open orders")
