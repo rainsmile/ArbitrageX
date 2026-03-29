@@ -253,8 +253,8 @@ export default function RiskPage() {
       {/* ================================================================== */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         {/* ---- Left Column (60%): Risk Rules ---- */}
-        <div className="lg:col-span-3 flex flex-col">
-          <Card className="flex-1">
+        <div className="lg:col-span-3">
+          <Card>
             <CardHeader>风控规则面板</CardHeader>
             <CardContent>
               <div className="space-y-6">
@@ -343,76 +343,82 @@ export default function RiskPage() {
         </div>
 
         {/* ---- Right Column (40%): Risk Events Timeline ---- */}
-        <div className="lg:col-span-2 flex flex-col">
-          <Card className="flex-1 flex flex-col min-h-0">
-            <CardHeader>风险事件时间线</CardHeader>
-            <CardContent className="flex-1 min-h-0 overflow-y-auto">
-              {sortedEvents.length === 0 ? (
-                <div className="py-12 text-center text-sm text-slate-600">暂无风险事件</div>
-              ) : (
-                <div className="relative">
-                  {/* Timeline vertical line */}
-                  <div className="absolute left-[11px] top-2 bottom-2 w-px bg-white/[0.06]" />
+        <div className="lg:col-span-2 relative">
+          {/* Absolute wrapper so right column doesn't inflate grid row height;
+              left column (rules) determines the row height and this scrolls within it. */}
+          <div className="lg:absolute lg:inset-0">
+            <Card className="h-full flex flex-col" padding="none">
+              <div className="px-5 pt-5">
+                <CardHeader>风险事件时间线</CardHeader>
+              </div>
+              <div className="flex-1 min-h-0 overflow-y-auto px-5 pb-5">
+                {sortedEvents.length === 0 ? (
+                  <div className="py-12 text-center text-sm text-slate-600">暂无风险事件</div>
+                ) : (
+                  <div className="relative">
+                    {/* Timeline vertical line */}
+                    <div className="absolute left-[11px] top-2 bottom-2 w-px bg-white/[0.06]" />
 
-                  <div className="space-y-1">
-                    {sortedEvents.map((event, idx) => {
-                      const sev = SEVERITY_CONFIG[event.severity] || SEVERITY_CONFIG.low;
+                    <div className="space-y-1">
+                      {sortedEvents.map((event, idx) => {
+                        const sev = SEVERITY_CONFIG[event.severity] || SEVERITY_CONFIG.low;
 
-                      return (
-                        <motion.div
-                          key={event.id}
-                          initial={{ opacity: 0, x: -6 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: idx * 0.04 }}
-                          className="relative pl-8 py-2"
-                        >
-                          {/* Timeline dot */}
-                          <div className={cn(
-                            'absolute left-[5px] top-3.5 h-3 w-3 rounded-full border-2 border-dark-950',
-                            sev.color === 'text-red-400' ? 'bg-red-400' : sev.color === 'text-yellow-400' ? 'bg-yellow-400' : 'bg-blue-400',
-                          )} />
+                        return (
+                          <motion.div
+                            key={event.id}
+                            initial={{ opacity: 0, x: -6 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: idx * 0.04 }}
+                            className="relative pl-8 py-2"
+                          >
+                            {/* Timeline dot */}
+                            <div className={cn(
+                              'absolute left-[5px] top-3.5 h-3 w-3 rounded-full border-2 border-dark-950',
+                              sev.color === 'text-red-400' ? 'bg-red-400' : sev.color === 'text-yellow-400' ? 'bg-yellow-400' : 'bg-blue-400',
+                            )} />
 
-                          <div className={cn(
-                            'rounded-lg border p-3 transition-colors',
-                            sev.border, 'bg-dark-900 hover:border-white/[0.12]',
-                          )}>
-                            <div className="flex items-start justify-between gap-2 mb-1.5">
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                <Badge variant={sev.variant} size="sm" dot>{sev.label}</Badge>
-                                <Badge variant="neutral" size="sm">{event.ruleName}</Badge>
-                                {event.triggered && <Badge variant="danger" size="sm">已触发</Badge>}
+                            <div className={cn(
+                              'rounded-lg border p-3 transition-colors',
+                              sev.border, 'bg-dark-900 hover:border-white/[0.12]',
+                            )}>
+                              <div className="flex items-start justify-between gap-2 mb-1.5">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <Badge variant={sev.variant} size="sm" dot>{sev.label}</Badge>
+                                  <Badge variant="neutral" size="sm">{event.ruleName}</Badge>
+                                  {event.triggered && <Badge variant="danger" size="sm">已触发</Badge>}
+                                </div>
+                                <span className="text-[10px] text-slate-600 font-number shrink-0 whitespace-nowrap">
+                                  {formatTimeAgo(event.timestamp)}
+                                </span>
                               </div>
-                              <span className="text-[10px] text-slate-600 font-number shrink-0 whitespace-nowrap">
-                                {formatTimeAgo(event.timestamp)}
-                              </span>
-                            </div>
 
-                            <p className="text-xs text-slate-300 leading-relaxed mb-1.5">{event.message}</p>
+                              <p className="text-xs text-slate-300 leading-relaxed mb-1.5">{event.message}</p>
 
-                            {/* Compact details */}
-                            <div className="flex flex-wrap gap-x-3 gap-y-1 text-[10px]">
-                              {event.details.threshold !== undefined && (
-                                <span className="text-slate-600">阈值: <span className="text-slate-400 font-number">{String(event.details.threshold)}</span></span>
-                              )}
-                              {event.details.current !== undefined && (
-                                <span className="text-slate-600">当前: <span className="text-slate-400 font-number">{formatCurrency(event.details.current as number, { compact: true })}</span></span>
-                              )}
-                              {event.details.loss !== undefined && (
-                                <span className="text-slate-600">亏损: <span className="text-red-400 font-number">-${String(event.details.loss)}</span></span>
-                              )}
-                              {typeof event.details.execution === 'string' && (
-                                <span className="text-slate-600">执行: <span className="text-primary-400 font-number">{event.details.execution}</span></span>
-                              )}
+                              {/* Compact details */}
+                              <div className="flex flex-wrap gap-x-3 gap-y-1 text-[10px]">
+                                {event.details.threshold !== undefined && (
+                                  <span className="text-slate-600">阈值: <span className="text-slate-400 font-number">{String(event.details.threshold)}</span></span>
+                                )}
+                                {event.details.current !== undefined && (
+                                  <span className="text-slate-600">当前: <span className="text-slate-400 font-number">{formatCurrency(event.details.current as number, { compact: true })}</span></span>
+                                )}
+                                {event.details.loss !== undefined && (
+                                  <span className="text-slate-600">亏损: <span className="text-red-400 font-number">-${String(event.details.loss)}</span></span>
+                                )}
+                                {typeof event.details.execution === 'string' && (
+                                  <span className="text-slate-600">执行: <span className="text-primary-400 font-number">{event.details.execution}</span></span>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        </motion.div>
-                      );
-                    })}
+                          </motion.div>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                )}
+              </div>
+            </Card>
+          </div>
         </div>
       </div>
 
