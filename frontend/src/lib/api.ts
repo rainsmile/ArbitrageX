@@ -759,7 +759,7 @@ function normalizeDashboard(raw: any): AnalyticsDashboard {
 
   const summary: PnlSummary = {
     totalPnl: n(pnl.total_net_profit_usdt ?? pnl.totalPnl),
-    totalPnlPercent: n(pnl.total_pnl_percent ?? pnl.totalPnlPercent ?? (n(pnl.total_net_profit_usdt) > 0 ? 5.2 : 0)),
+    totalPnlPercent: n(pnl.total_pnl_percent ?? pnl.totalPnlPercent),
     totalTrades: n(pnl.trade_count ?? pnl.totalTrades),
     winningTrades: n(pnl.win_count ?? pnl.winningTrades),
     losingTrades: n(pnl.loss_count ?? pnl.losingTrades),
@@ -830,8 +830,8 @@ function normalizeDashboard(raw: any): AnalyticsDashboard {
     profitByExchange,
     profitBySymbol,
     profitByStrategy,
-    recentExecutions: raw.recent_executions ?? raw.recentExecutions ?? [],
-    topOpportunities: raw.top_opportunities ?? raw.topOpportunities ?? [],
+    recentExecutions: (raw.recent_executions ?? raw.recentExecutions ?? []).map(normalizeExecutionResult),
+    topOpportunities: (raw.top_opportunities ?? raw.topOpportunities ?? []).map(normalizeOpportunity),
   };
 }
 

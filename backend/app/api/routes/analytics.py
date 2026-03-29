@@ -107,6 +107,22 @@ async def get_pnl_summary(
 
         if count and count > 0:
             win_rate = Decimal(str(round((wins or 0) / count * 100, 2)))
+
+            # Calculate total traded volume from execution_plans to derive PnL %
+            vol_result = await db.execute(
+                select(func.sum(ExecutionPlan.target_value_usdt)).where(
+                    ExecutionPlan.started_at.between(period_start, period_end)
+                )
+            )
+            total_volume = vol_result.scalar() or 0
+            total_volume_dec = Decimal(str(total_volume))
+            net_dec = Decimal(str(net or 0))
+            pnl_pct = (
+                Decimal(str(round(float(net_dec / total_volume_dec * 100), 4)))
+                if total_volume_dec > 0
+                else None
+            )
+
             return PnlSummary(
                 total_gross_profit_usdt=Decimal(str(gross or 0)),
                 total_fees_usdt=Decimal(str(fees or 0)),
@@ -119,6 +135,8 @@ async def get_pnl_summary(
                 avg_profit_per_trade_usdt=Decimal(str(round(avg_p or 0, 4))),
                 max_profit_usdt=Decimal(str(max_p or 0)),
                 max_loss_usdt=Decimal(str(min_p or 0)),
+                total_volume_usdt=total_volume_dec,
+                total_pnl_percent=pnl_pct,
                 sharpe_ratio=None,
                 period_start=period_start,
                 period_end=period_end,
@@ -474,6 +492,78 @@ async def get_dashboard(
     slippage = await get_slippage_analysis(start, end, db)
     failures = await get_failure_analysis(start, end, db)
 
+    # Recent executions (last 10 completed/failed)
+    recent_executions: list[dict] = []
+    try:
+        exec_result = await db.execute(
+            select(
+                ExecutionPlan.id,
+                ExecutionPlan.strategy_type,
+                ExecutionPlan.status,
+                ExecutionPlan.actual_profit_usdt,
+                ExecutionPlan.actual_profit_pct,
+                ExecutionPlan.execution_time_ms,
+                ExecutionPlan.completed_at,
+                ExecutionPlan.started_at,
+            )
+            .where(
+                ExecutionPlan.status.in_([
+                    ExecutionPlanStatus.COMPLETED,
+                    ExecutionPlanStatus.FAILED,
+                    ExecutionPlanStatus.ABORTED,
+                ])
+            )
+            .order_by(ExecutionPlan.completed_at.desc())
+            .limit(10)
+        )
+        for row in exec_result.all():
+            eid, stype, st, profit, profit_pct, etime, completed, started = row
+            recent_executions.append({
+                "execution_id": str(eid),
+                "strategy_type": stype.value if hasattr(stype, "value") else str(stype),
+                "state": st.value if hasattr(st, "value") else str(st),
+                "actual_profit_usdt": float(profit) if profit else 0,
+                "actual_profit_pct": float(profit_pct) if profit_pct else 0,
+                "execution_time_ms": etime or 0,
+                "completed_at": completed.timestamp() if completed else None,
+                "started_at": started.timestamp() if started else None,
+            })
+    except Exception as exc:
+        logger.debug("Failed to fetch recent executions for dashboard: {}", exc)
+
+    # Top opportunities (active, sorted by estimated net profit)
+    top_opportunities: list[dict] = []
+    try:
+        from app.models.opportunity import ArbitrageOpportunity, OpportunityStatus
+
+        opp_result = await db.execute(
+            select(ArbitrageOpportunity)
+            .where(ArbitrageOpportunity.status == OpportunityStatus.DETECTED)
+            .order_by(ArbitrageOpportunity.estimated_net_profit_pct.desc())
+            .limit(10)
+        )
+        for row in opp_result.scalars().all():
+            top_opportunities.append({
+                "id": str(row.id),
+                "strategy_type": row.strategy_type.value if hasattr(row.strategy_type, "value") else str(row.strategy_type),
+                "symbol": (row.symbols[0] if row.symbols else ""),
+                "buy_exchange": row.buy_exchange or "",
+                "sell_exchange": row.sell_exchange or "",
+                "buy_price": float(row.buy_price) if row.buy_price else 0,
+                "sell_price": float(row.sell_price) if row.sell_price else 0,
+                "spread_pct": float(row.spread_pct) if row.spread_pct else 0,
+                "theoretical_profit_pct": float(row.theoretical_profit_pct) if row.theoretical_profit_pct else 0,
+                "estimated_net_profit_pct": float(row.estimated_net_profit_pct) if row.estimated_net_profit_pct else 0,
+                "executable_quantity": float(row.executable_quantity) if row.executable_quantity else 0,
+                "executable_value_usdt": float(row.executable_value_usdt) if row.executable_value_usdt else 0,
+                "confidence_score": float(row.confidence_score) if row.confidence_score else 0,
+                "detected_at": row.detected_at.timestamp() if row.detected_at else None,
+                "buy_fee_pct": float(row.buy_fee_pct) if row.buy_fee_pct else 0,
+                "sell_fee_pct": float(row.sell_fee_pct) if row.sell_fee_pct else 0,
+            })
+    except Exception as exc:
+        logger.debug("Failed to fetch top opportunities for dashboard: {}", exc)
+
     return AnalyticsDashboard(
         pnl_summary=pnl,
         profit_by_period=profit_period,
@@ -482,6 +572,8 @@ async def get_dashboard(
         profit_by_strategy=profit_strategy,
         slippage=slippage,
         failures=failures,
+        recent_executions=recent_executions,
+        top_opportunities=top_opportunities,
         generated_at=datetime.now(timezone.utc),
     )
 

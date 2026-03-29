@@ -30,6 +30,8 @@ class PnlSummary(BaseModel):
     avg_profit_per_trade_usdt: Decimal = Field(description="Average net profit per trade (USDT)")
     max_profit_usdt: Decimal = Field(description="Largest single-trade profit (USDT)")
     max_loss_usdt: Decimal = Field(description="Largest single-trade loss (USDT)")
+    total_volume_usdt: Decimal = Field(default=Decimal(0), description="Total traded volume (USDT)")
+    total_pnl_percent: Optional[Decimal] = Field(default=None, description="Net profit as % of traded volume")
     sharpe_ratio: Optional[Decimal] = Field(default=None, description="Sharpe ratio if enough samples exist")
     period_start: datetime = Field(description="Start of the reporting period")
     period_end: datetime = Field(description="End of the reporting period")
@@ -147,6 +149,12 @@ class AnalyticsDashboard(BaseModel):
     )
     slippage: SlippageAnalysis = Field(description="Slippage analysis")
     failures: FailureAnalysis = Field(description="Failure analysis")
+    recent_executions: list[dict] = Field(
+        default_factory=list, description="Recent completed/failed executions"
+    )
+    top_opportunities: list[dict] = Field(
+        default_factory=list, description="Top active opportunities by profit potential"
+    )
     generated_at: datetime = Field(
         default_factory=datetime.utcnow,
         description="Timestamp when this dashboard was generated",
