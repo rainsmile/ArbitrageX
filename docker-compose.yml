@@ -57,6 +57,7 @@ services:
       - DATABASE_URL=mysql+aiomysql://${MYSQL_USER:-myuser}:${MYSQL_PASSWORD:-YourPassword123!}@mysql:3306/${MYSQL_DATABASE:-arbitrage}?charset=utf8mb4
       - REDIS_URL=redis://redis:6379/0
       - TRADING_PAPER_MODE=${TRADING_PAPER_MODE:-true}
+      - LOG_DIR=/tmp
     depends_on:
       mysql:
         condition: service_healthy
