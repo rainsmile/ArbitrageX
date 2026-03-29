@@ -85,6 +85,14 @@ interface SymbolRow {
   spreadAbsolute: number;
   spreadPercent: number;
   exchangeCount: number;
+  // Actual arbitrage spread: best_bid (sell) - best_ask (buy)
+  arbBestBid: number;
+  arbBestAsk: number;
+  arbBuyExchange: string;
+  arbSellExchange: string;
+  arbSpreadAbsolute: number;
+  arbSpreadPercent: number;
+  arbNetPercent: number; // after 0.2% fees
 }
 
 interface FreshnessEntry {
@@ -134,6 +142,13 @@ function buildSymbolRows(tickers: Ticker[]): SymbolRow[] {
         spreadAbsolute: 0,
         spreadPercent: 0,
         exchangeCount: 0,
+        arbBestBid: 0,
+        arbBestAsk: 0,
+        arbBuyExchange: "",
+        arbSellExchange: "",
+        arbSpreadAbsolute: 0,
+        arbSpreadPercent: 0,
+        arbNetPercent: 0,
       });
       continue;
     }
@@ -159,6 +174,28 @@ function buildSymbolRows(tickers: Ticker[]): SymbolRow[] {
 
     const spreadAbs = highest - lowest;
     const spreadPct = lowest > 0 ? (spreadAbs / lowest) * 100 : 0;
+
+    // Actual arbitrage spread: best bid (highest sell price) vs best ask (lowest buy price)
+    let arbBestBid = 0;
+    let arbBestAsk = Infinity;
+    let arbSellEx = "";
+    let arbBuyEx = "";
+    for (const [ex, t] of exchangeMap) {
+      if (t.bid > 0 && t.bid > arbBestBid) {
+        arbBestBid = t.bid;
+        arbSellEx = ex;
+      }
+      if (t.ask > 0 && t.ask < arbBestAsk) {
+        arbBestAsk = t.ask;
+        arbBuyEx = ex;
+      }
+    }
+    if (arbBestAsk === Infinity) arbBestAsk = 0;
+    // Only valid if different exchanges
+    const arbValid = arbBuyEx !== arbSellEx && arbBestBid > 0 && arbBestAsk > 0;
+    const arbSpreadAbs = arbValid ? arbBestBid - arbBestAsk : 0;
+    const arbSpreadPct = arbValid && arbBestAsk > 0 ? (arbSpreadAbs / arbBestAsk) * 100 : 0;
+    const arbNetPct = arbSpreadPct - 0.2; // subtract 2x 0.1% taker fees
 
     // Build exchange cells
     const exchanges: Record<string, ExchangeCell | null> = {};
@@ -190,6 +227,13 @@ function buildSymbolRows(tickers: Ticker[]): SymbolRow[] {
       spreadAbsolute: spreadAbs,
       spreadPercent: spreadPct,
       exchangeCount: exchangeMap.size,
+      arbBestBid: arbBestBid,
+      arbBestAsk: arbBestAsk,
+      arbBuyExchange: arbBuyEx,
+      arbSellExchange: arbSellEx,
+      arbSpreadAbsolute: arbSpreadAbs,
+      arbSpreadPercent: arbSpreadPct,
+      arbNetPercent: arbNetPct,
     });
   }
 
@@ -247,8 +291,8 @@ function CrossExchangeTable({ rows }: { rows: SymbolRow[] }) {
                 {EXCHANGE_LABELS[ex] || ex}
               </th>
             ))}
-            <th className="px-4 py-3 text-center text-[11px] font-medium text-slate-500 uppercase tracking-wider whitespace-nowrap min-w-[180px] border-l border-white/[0.06]">
-              价差概览
+            <th className="px-4 py-3 text-center text-[11px] font-medium text-slate-500 uppercase tracking-wider whitespace-nowrap min-w-[200px] border-l border-white/[0.06]">
+              套利价差
             </th>
           </tr>
         </thead>
@@ -324,36 +368,52 @@ function CrossExchangeTable({ rows }: { rows: SymbolRow[] }) {
                 );
               })}
 
-              {/* Spread overview column */}
+              {/* Arbitrage spread column */}
               <td className="px-4 py-3 border-l border-white/[0.06]">
                 {row.exchangeCount >= 2 ? (
-                  <div className="flex flex-col items-center gap-1.5">
-                    {/* Spread percent */}
-                    <span
-                      className={cn(
-                        "font-mono text-sm font-bold",
-                        row.spreadPercent > 0.1
-                          ? "text-emerald-400"
-                          : row.spreadPercent > 0.05
-                          ? "text-yellow-400"
-                          : "text-slate-400"
-                      )}
-                    >
-                      {row.spreadPercent.toFixed(4)}%
-                    </span>
-                    {/* Spread absolute */}
-                    <span className="font-mono text-[11px] text-slate-500">
-                      {fmtPrice(row.spreadAbsolute)}
-                    </span>
-                    {/* Direction arrow: highest → lowest */}
-                    <div className="flex items-center gap-1 text-[10px]">
+                  <div className="flex flex-col items-center gap-1">
+                    {/* Gross arbitrage spread */}
+                    <div className="flex items-baseline gap-1.5">
+                      <span className="text-[10px] text-slate-600">毛利</span>
+                      <span
+                        className={cn(
+                          "font-mono text-xs font-semibold",
+                          row.arbSpreadPercent > 0.1
+                            ? "text-emerald-400"
+                            : row.arbSpreadPercent > 0
+                            ? "text-yellow-400"
+                            : "text-slate-500"
+                        )}
+                      >
+                        {row.arbSpreadPercent > 0 ? "+" : ""}{row.arbSpreadPercent.toFixed(4)}%
+                      </span>
+                    </div>
+                    {/* Net after fees */}
+                    <div className="flex items-baseline gap-1.5">
+                      <span className="text-[10px] text-slate-600">净利</span>
+                      <span
+                        className={cn(
+                          "font-mono text-sm font-bold",
+                          row.arbNetPercent >= 0.05
+                            ? "text-emerald-400"
+                            : row.arbNetPercent >= 0
+                            ? "text-yellow-400"
+                            : "text-red-400"
+                        )}
+                      >
+                        {row.arbNetPercent > 0 ? "+" : ""}{row.arbNetPercent.toFixed(4)}%
+                      </span>
+                    </div>
+                    {/* Direction: buy exchange → sell exchange */}
+                    <div className="flex items-center gap-1 text-[10px] mt-0.5">
+                      <span className="text-blue-400 font-medium">
+                        {(EXCHANGE_LABELS[row.arbBuyExchange] || row.arbBuyExchange)}
+                      </span>
+                      <span className="text-slate-600">买→</span>
                       <span className="text-emerald-400 font-medium">
-                        {(EXCHANGE_LABELS[row.highestExchange] || row.highestExchange).toUpperCase()}
+                        {(EXCHANGE_LABELS[row.arbSellExchange] || row.arbSellExchange)}
                       </span>
-                      <span className="text-slate-600">→</span>
-                      <span className="text-red-400 font-medium">
-                        {(EXCHANGE_LABELS[row.lowestExchange] || row.lowestExchange).toUpperCase()}
-                      </span>
+                      <span className="text-slate-600">卖</span>
                     </div>
                   </div>
                 ) : (
@@ -460,10 +520,10 @@ export default function MarketPage() {
 
   const totalExchanges = freshnessData.length;
   const totalTickers = tickers.length;
-  const maxSpread = symbolRows.length > 0
-    ? Math.max(...symbolRows.map((r) => r.spreadPercent))
+  const maxArbNet = symbolRows.length > 0
+    ? Math.max(...symbolRows.map((r) => r.arbNetPercent))
     : 0;
-  const maxSpreadSymbol = symbolRows.find((r) => r.spreadPercent === maxSpread)?.symbol || "--";
+  const maxArbSymbol = symbolRows.find((r) => r.arbNetPercent === maxArbNet)?.symbol || "--";
 
   return (
     <div className="space-y-6">
@@ -552,13 +612,16 @@ export default function MarketPage() {
         </Card>
         <Card padding="sm">
           <div className="text-[10px] text-slate-500 uppercase tracking-wider">
-            最大跨所价差
+            最佳套利净利
           </div>
-          <div className="text-xl font-bold text-emerald-400 mt-1 font-mono">
-            {maxSpread.toFixed(4)}%
+          <div className={cn(
+            "text-xl font-bold mt-1 font-mono",
+            maxArbNet >= 0.05 ? "text-emerald-400" : maxArbNet >= 0 ? "text-yellow-400" : "text-red-400"
+          )}>
+            {maxArbNet > 0 ? "+" : ""}{maxArbNet.toFixed(4)}%
           </div>
           <div className="text-[10px] text-slate-600 mt-0.5">
-            {maxSpreadSymbol}
+            {maxArbSymbol}（扣除0.2%手续费）
           </div>
         </Card>
       </div>
@@ -602,12 +665,12 @@ export default function MarketPage() {
 
           {/* Market Summary */}
           <Card padding="md">
-            <CardHeader>市场概要</CardHeader>
+            <CardHeader>套利价差排行</CardHeader>
             <CardContent>
               <div className="space-y-3 text-xs">
                 {symbolRows
                   .filter((r) => r.exchangeCount >= 2)
-                  .sort((a, b) => b.spreadPercent - a.spreadPercent)
+                  .sort((a, b) => b.arbNetPercent - a.arbNetPercent)
                   .slice(0, 5)
                   .map((r) => (
                     <div
@@ -620,20 +683,25 @@ export default function MarketPage() {
                       <div className="flex items-center gap-2">
                         <span
                           className={cn(
-                            "font-mono",
-                            r.spreadPercent > 0.1
+                            "font-mono font-medium",
+                            r.arbNetPercent >= 0.05
                               ? "text-emerald-400"
-                              : "text-slate-400"
+                              : r.arbNetPercent >= 0
+                              ? "text-yellow-400"
+                              : "text-red-400"
                           )}
                         >
-                          {r.spreadPercent.toFixed(4)}%
+                          {r.arbNetPercent > 0 ? "+" : ""}{r.arbNetPercent.toFixed(4)}%
                         </span>
                         <span className="text-[10px] text-slate-600">
-                          {r.highestExchange}→{r.lowestExchange}
+                          {r.arbBuyExchange}→{r.arbSellExchange}
                         </span>
                       </div>
                     </div>
                   ))}
+                <p className="text-[10px] text-slate-600 pt-1 border-t border-white/[0.04]">
+                  净利 = 毛利 - 0.2% 手续费（买卖各0.1%）
+                </p>
               </div>
             </CardContent>
           </Card>
